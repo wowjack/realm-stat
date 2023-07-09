@@ -1,8 +1,14 @@
 use std::io::Write;
+use byteorder::{ReadBytesExt, ByteOrder};
 use rc4::{Key, Rc4, consts::*, KeyInit, StreamCipher};
 
 
 fn main() {
+    let b = [0u8, 0, 0, 10, 0];
+    let s = get_leading_u32(&b);
+    println!("{s}");
+    return;
+
     let devices = pcap::Device::list().expect("device list failed");
     for (ind, d) in devices.iter().enumerate() {
         println!("{ind}: {}", d.clone().desc.unwrap_or("Error".to_string()));
@@ -90,23 +96,22 @@ fn process_packet(packet: etherparse::SlicedPacket, buffer: &mut Vec<u8>) {
 fn chunkize(mut bytes: &[u8]) -> Vec<&[u8]> {
     let mut chunks = vec![];
     loop {
-        match get_leading_u32(bytes) {
-            Err(_) => return chunks,
-            Ok(count) => {
-                if count as usize > bytes.len() {return chunks}
-                let (c1, c2) = bytes.split_at(count as usize);
-                chunks.push(c1);
-                bytes = c2;
-            }
-        }
+        let count = get_leading_u32(bytes);
+        if count as usize > bytes.len() {return chunks}
+        let (c1, c2) = bytes.split_at(count as usize);
+        chunks.push(c1);
+        bytes = c2;
     }
 }
 
-fn get_leading_u32(bytes: &[u8]) -> Result<u32, ()> {
+fn get_leading_u32(bytes: &[u8]) -> u32 {
+    /*
     if bytes.len() < 4 {return Err(())}
     let b: Result<[u8; 4], _> = bytes[0..4].try_into();
     return match b {
         Err(_) => return Err(()),
         Ok(s) => Ok(u32::from_be_bytes(s))
     }
+    */
+    byteorder::BigEndian::read_u32(bytes)
 }
