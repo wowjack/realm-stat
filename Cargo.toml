@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 pcap = "1.1.0"
 etherparse = "0.13.0"
+rc4 = "0.1.0"

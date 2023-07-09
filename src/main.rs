@@ -1,4 +1,5 @@
 use std::io::Write;
+use rc4::{Key, Rc4, consts::*, KeyInit, StreamCipher};
 
 
 fn main() {
@@ -29,17 +30,83 @@ fn main() {
         .open()
         .unwrap();
 
-    cap.filter(&format!("dst host {}", device.addresses[0].addr.to_string()), false).expect("Error with packet filter");
+    cap.filter(&format!("ip dst {} and ip proto \\tcp", device.addresses[0].addr.to_string()), false).expect("Error with packet filter");
     
     
-    for _ in 0..10 {
-        let slice = etherparse::SlicedPacket::from_ethernet(cap.next_packet().unwrap().data).expect("Error reading packet data");
-            match slice.ip.expect("Failed to get IP") {
-            etherparse::InternetSlice::Ipv4(header, _ext) => {
-                println!("{:?} to {:?}", header.source_addr(), header.destination_addr());
-            },
-            _ => panic!("Not an ipv4 packet")
+    let mut bytebuffer: Vec<u8> = vec![];
+    while bytebuffer.len() < 50000 {
+        let new_packet = cap.next_packet();
+        if let Ok(packet) = new_packet {
+            let slice = etherparse::SlicedPacket::from_ethernet(packet.data);
+            match slice {
+                Ok(s) => process_packet(s, &mut bytebuffer),
+                Err(e) => println!("Packet data error: {}", e)
+            }
         }
     }
-    
+
+    let mut f = std::fs::File::create("./out.txt").unwrap();
+    let chunks = chunkize(bytebuffer.as_slice());
+    for chunk in chunks.iter() {
+        let _ = f.write_all(format!("{:?}\n", chunk).as_bytes());
+    }
+
+    println!("{:?}", chunks[0]);
+
+
+    /*
+    let mut rc4 = Rc4::new(b"c91d9eec420160730d825604e0".into());
+    let mut data = chunks[0].to_owned();
+    rc4.apply_keystream(&mut data);
+    println!("{}", String::from_utf8(data).unwrap());
+    */
+}
+
+
+fn process_packet(packet: etherparse::SlicedPacket, buffer: &mut Vec<u8>) {
+    let (src_addr, dst_addr) = match packet.ip.expect("Error getting ip header") {
+        etherparse::InternetSlice::Ipv4(header, _ext) => (header.source_addr().to_string(), header.destination_addr().to_string()),
+        _ => ("err".to_string(), "err".to_string())
+    };
+
+    let (src_port, dst_port): (u16, u16) = match packet.transport.expect("Error getting transport header") {
+        etherparse::TransportSlice::Tcp(header) => (header.source_port(), header.destination_port()),
+        _ => (0, 0)
+    };
+
+    //println!("{}:{} tp {}:{}", src_addr, src_port, dst_addr, dst_port);
+    //println!("{} {:?}", packet.payload.len(), packet.payload);
+    if src_port == 2050 {
+        buffer.extend_from_slice(packet.payload)
+    }
+}
+
+
+
+
+/*
+    Separates a chunk slice into slices based on the leading size number
+ */
+fn chunkize(mut bytes: &[u8]) -> Vec<&[u8]> {
+    let mut chunks = vec![];
+    loop {
+        match get_leading_u32(bytes) {
+            Err(_) => return chunks,
+            Ok(count) => {
+                if count as usize > bytes.len() {return chunks}
+                let (c1, c2) = bytes.split_at(count as usize);
+                chunks.push(c1);
+                bytes = c2;
+            }
+        }
+    }
+}
+
+fn get_leading_u32(bytes: &[u8]) -> Result<u32, ()> {
+    if bytes.len() < 4 {return Err(())}
+    let b: Result<[u8; 4], _> = bytes[0..4].try_into();
+    return match b {
+        Err(_) => return Err(()),
+        Ok(s) => Ok(u32::from_be_bytes(s))
+    }
 }
