@@ -6,5 +6,7 @@ edition = "2021"
 [dependencies]
 pcap = "1.1.0"
 etherparse = "0.13.0"
-rc4 = "0.1.0"
 byteorder = "1.4.3"
+bytemuck = "1.13.1"
+env_logger = "0.10.0"
+log = "0.4.19"

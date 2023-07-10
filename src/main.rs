@@ -1,82 +1,45 @@
 use std::io::Write;
-use byteorder::{ReadBytesExt, ByteOrder};
-use rc4::{Key, Rc4, consts::*, KeyInit, StreamCipher};
+use byteorder::{ByteOrder};
 
+mod rc4;
+use rc4::Rc4;
+
+use crate::sniffer::Sniffer;
+
+mod packet_factory;
+
+mod sniffer;
+
+mod rotmg_packet_type;
+mod byte_buffer;
 
 fn main() {
-    let b = [0u8, 0, 0, 10, 0];
-    let s = get_leading_u32(&b);
-    println!("{s}");
-    return;
+    env_logger::init();
+    //let mut bytes = [2, 48, 90, 136, 223, 169, 251, 23, 25, 102];
+    //let mut rc4 = Rc4::new(vec![0xc9, 0x1d, 0x9e, 0xec, 0x42, 0x01, 0x60, 0x73, 0x0d, 0x82, 0x56, 0x04, 0xe0]);
+    //rc4.apply_keystream(0, &mut bytes);
 
-    let devices = pcap::Device::list().expect("device list failed");
-    for (ind, d) in devices.iter().enumerate() {
-        println!("{ind}: {}", d.clone().desc.unwrap_or("Error".to_string()));
-    }
-    let mut selected = std::usize::MAX;
-    while selected >= devices.len() {
-        let mut input = String::new();
-        print!("Select Network Adapter: ");
-        let _ = std::io::stdout().flush();
-        let _ = std::io::stdin().read_line(&mut input);
-        if let Ok(ind) = input.trim_end().parse::<usize>() {
-            selected = ind;
-        }
-    }
-    
-    let device = devices[selected as usize].clone();
+    let mut sniffer = Sniffer::ask_for_device();
 
-    println!("Listening with addr {:?}", device.clone().addresses[0].addr);
-    
+    sniffer.start();
 
-    // Setup Capture
-    let mut cap = pcap::Capture::from_device(device.clone())
-        .unwrap()
-        .immediate_mode(true)
-        .open()
-        .unwrap();
-
-    cap.filter(&format!("ip dst {} and ip proto \\tcp", device.addresses[0].addr.to_string()), false).expect("Error with packet filter");
-    
-    
-    let mut bytebuffer: Vec<u8> = vec![];
-    while bytebuffer.len() < 50000 {
-        let new_packet = cap.next_packet();
-        if let Ok(packet) = new_packet {
-            let slice = etherparse::SlicedPacket::from_ethernet(packet.data);
-            match slice {
-                Ok(s) => process_packet(s, &mut bytebuffer),
-                Err(e) => println!("Packet data error: {}", e)
-            }
-        }
-    }
-
+    /*
     let mut f = std::fs::File::create("./out.txt").unwrap();
-    let chunks = chunkize(bytebuffer.as_slice());
     for chunk in chunks.iter() {
         let _ = f.write_all(format!("{:?}\n", chunk).as_bytes());
     }
-
-    println!("{:?}", chunks[0]);
-
-
-    /*
-    let mut rc4 = Rc4::new(b"c91d9eec420160730d825604e0".into());
-    let mut data = chunks[0].to_owned();
-    rc4.apply_keystream(&mut data);
-    println!("{}", String::from_utf8(data).unwrap());
     */
 }
 
 
 fn process_packet(packet: etherparse::SlicedPacket, buffer: &mut Vec<u8>) {
-    let (src_addr, dst_addr) = match packet.ip.expect("Error getting ip header") {
-        etherparse::InternetSlice::Ipv4(header, _ext) => (header.source_addr().to_string(), header.destination_addr().to_string()),
+    let (_src_addr, _dst_addr) = match packet.ip {
+        Some(etherparse::InternetSlice::Ipv4(header, _ext)) => (header.source_addr().to_string(), header.destination_addr().to_string()),
         _ => ("err".to_string(), "err".to_string())
     };
 
-    let (src_port, dst_port): (u16, u16) = match packet.transport.expect("Error getting transport header") {
-        etherparse::TransportSlice::Tcp(header) => (header.source_port(), header.destination_port()),
+    let (src_port, _dst_port): (u16, u16) = match packet.transport {
+        Some(etherparse::TransportSlice::Tcp(header)) => (header.source_port(), header.destination_port()),
         _ => (0, 0)
     };
 
