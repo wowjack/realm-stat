@@ -3,7 +3,9 @@ Custom rc4 implementation since crate ones wont work
 */
 #![allow(unused_variables, dead_code)]
 
-#[derive(Clone)]
+use byteorder::ByteOrder;
+
+#[derive(Clone, Debug)]
 pub struct Rc4 {
     key: Vec<u8>,
     state: [u8; 256],
@@ -49,10 +51,12 @@ impl Rc4 {
         }
     }
 
-    pub fn apply_keystream(&mut self, offset: usize, bytes: &mut [u8]) {
-        for byte in bytes.iter_mut().skip(offset) {
-            *byte = *byte ^ self.get_xor();
-        }
+    pub fn apply_keystream(&mut self, offset: usize, bytes: &Vec<u8>) -> Vec<u8> {
+        bytes.clone().into_iter().take(offset).chain(bytes.iter().skip(offset).map(|b| *b ^ self.get_xor())).collect()
+    }
+
+    pub fn apply_keystream_static(&self, offset: usize, bytes: &Vec<u8>) -> Vec<u8> {
+        self.clone().apply_keystream(offset, bytes)
     }
 
     fn get_xor(&mut self) -> u8 {
@@ -64,5 +68,29 @@ impl Rc4 {
         self.i = 0;
         self.j = 0;
         self.state = self.init_state.clone();
+    }
+
+    /**
+     * Align the cipher's keystream such that decrypting chunk1, n bytes, then chunk 2 will yeild chunk1+1 = chunk2
+     * returns the number that chunk2 decrypts to
+     */
+    pub fn align_to(&mut self, chunk1: &[u8], chunk2: &[u8], bytes_between: usize, extra: usize) -> u32 {
+        log::debug!("Aligning cipher using {:?} {:?}", chunk1, chunk2);
+        for i in 0..10_000_000 {
+            let mut cipher = self.clone();
+            cipher.skip(i);
+            let c1 = byteorder::BigEndian::read_u32(&cipher.apply_keystream(0, &chunk1.to_vec()));
+            cipher.skip(bytes_between);
+            let c2 = byteorder::BigEndian::read_u32(&cipher.apply_keystream(0, &chunk2.to_vec()));
+
+            if c1 + 1 == c2 {
+                log::debug!("Found appropriate keystream: c1:{c1} c2:{c2} at offset {i}");
+                cipher.skip(extra);
+                *self = cipher;
+                return c2;
+            }
+        }
+        log::debug!("Failed to find cipher offset");
+        return 0
     }
 }

@@ -3,7 +3,7 @@ use std::io::Write;
 use etherparse::SlicedPacket;
 use pcap::{Capture, Active, Inactive, Device};
 
-use crate::{packet_factory, byte_buffer};
+use crate::{packet_factory, byte_buffer, rotmg_packet::RotmgPacket};
 
 
 
@@ -36,6 +36,9 @@ impl Sniffer {
         }
     }
 
+    /**
+     * Open the capture handle, set the filter, and begin listening for packets and sending them to the packet factory
+     */
     pub fn start(&mut self) {
         let mut received_nonmax_packet = false; //Whether or not a packet smaller than the maximum size has been received
 
@@ -59,27 +62,11 @@ impl Sniffer {
                 match self.factory.get_packet() {
                     None => break,
                     Some(p) => {
-                        if p.packet_type != 92 {continue}
-                        let bytes: Vec<u8> =  p.payload.into_iter().skip(5).collect();
-                        let mut buf = byte_buffer::ByteBuffer::new(bytes);
-                        let width = buf.read_u32();
-                        let height = buf.read_u32();
-                        let name = buf.read_string();
-                        let _ = buf.read_string();
-                        let realm_name = buf.read_string();
-                        let seed = buf.read_u32();
-                        let background = buf.read_u32();
-                        let difficulty = buf.read_f32();
-                        let allow_teleport = buf.read_u8();
-                        let show_display = buf.read_u8();
-                        let _ = buf.read_u8();
-                        let max_players = buf.read_u16();
-                        let _opened_time = buf.read_u32();
-                        let build_version = buf.read_string();
-                        let _ = buf.read_u32();
-                        let dungeon_mods = buf.read_string();
-                        println!("width:{:?} height:{:?} name:{:?} realm:{:?} seed:{:?} background:{:?} difficulty:{:?} tele:{:?} display:{:?} max:{:?} build:{:?} mods:{:?}",
-                            width, height, name, realm_name, seed, background, difficulty, allow_teleport, show_display, max_players, build_version, dungeon_mods); 
+                        if let RotmgPacket::NewTick { tick_id, tick_time, server_current_time, server_prev_time, rem } = p.clone() {
+                            //log::debug!("Got tick packet: {:?}", p);
+                        } else {
+                            //log::debug!("Got packet: {:?}", p);
+                        }
                     }
                 }
             }
@@ -90,9 +77,9 @@ impl Sniffer {
         if slice.payload.len() == 0 {
             return;
         }
-        if slice.payload.len() < 1460 {
+        if slice.payload.len() < 1460 && *received_nonmax == false {
             *received_nonmax = true;
-            //return;
+            return;
         }
         if *received_nonmax == true {
             self.factory.insert_packet(slice);
