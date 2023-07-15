@@ -94,6 +94,14 @@ impl RotmgPacketFactory {
     
 }
 
+
+/**
+ * Takes in application packets that have been stitched together by the packet factory
+ * Decrypts the packets and waits to output them
+ * When a tick packet arrives, cipher alignment is checked and stored packets are sent out if the cipher is correct
+ * 
+ * Maintains cipher and tick alignment
+ */
 struct RotmgPacketConstructor {
     cipher: Rc4,
     current_tick: Option<u32>,
@@ -127,7 +135,7 @@ impl RotmgPacketConstructor {
             //log::debug!("{:?}", new_packet);
             self.reset()
         } else if let RotmgPacket::NewTick {..} = new_packet.clone() {
-            //log::debug!("{:?}", new_packet);
+            log::debug!("{:?}", new_packet);
             self.process_tick(data.clone(), new_packet.clone(), old_cipher);
         } else {
             //Add to byte counter in prev_tick_info
@@ -136,7 +144,7 @@ impl RotmgPacketConstructor {
             }
         }
 
-        log::debug!("{:?}", new_packet);
+        //log::debug!("{:?}", new_packet);
         
         
                 
@@ -158,7 +166,10 @@ impl RotmgPacketConstructor {
                     return
                 } else {
                     //Something happened with packet decryption, realign cipher
+                    //First try to just tweak the alignment of the cipher to get the new tick id to match
+                    //If it does not align within a reasonable search space, then reset and brute force search
                     log::debug!("Tick packet alignment failure. Expected {t} got {tick_id}");
+
                     self.realign(tick_data.clone());
                     self.prev_tick_info = Some((tick_data, 0, cipher));
                     return
@@ -196,6 +207,16 @@ impl RotmgPacketConstructor {
             log::debug!("Realigning cipher");
             let c1: Vec<u8> = old_bytes.clone().into_iter().skip(5).take(4).collect();
             let c2: Vec<u8> = tick_data.clone().into_iter().skip(5).take(4).collect();
+
+            //First try to realign the cipher by trying a bunch of different offsets for the second tick until key^second_tick = self.current_tick 
+            if let Some(t) = self.current_tick {
+                let mut new_cipher = cipher.clone();
+                let result = new_cipher.align_to_real_tick(t, &c2, *bytes_between as usize + old_bytes.len()-9, tick_data.len()-9);
+                if result == true {
+                    self.cipher = new_cipher;
+                    return
+                }
+            }
 
             if c1 == c2 {
                 log::debug!("old and new cipher are the same, resetting");

@@ -93,4 +93,21 @@ impl Rc4 {
         log::debug!("Failed to find cipher offset");
         return 0
     }
+
+    pub fn align_to_real_tick(&mut self, real_tick: u32, encrypted_tick: &[u8], bytes_between: usize, extra: usize) -> bool {
+        log::debug!("Real tick align {:?} to {real_tick}", encrypted_tick);
+        for i in 0..(bytes_between + 100_000) {
+            let mut cipher = self.clone();
+            cipher.skip(4 + i);
+            let decrypted_tick = byteorder::BigEndian::read_u32(&cipher.apply_keystream(0, &encrypted_tick.to_vec()));
+
+            if decrypted_tick == real_tick {
+                cipher.skip(extra);
+                *self = cipher;
+                log::debug!("Found appropriate offset {i} to align {:?} to {real_tick}", encrypted_tick);
+                return true
+            }
+        }
+        return false
+    }
 }
