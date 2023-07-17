@@ -1,4 +1,4 @@
-use crate::byte_buffer::ByteBuffer;
+use crate::packet_factory::byte_buffer::ByteBuffer;
 
 #[derive(Debug, Clone)]
 pub enum RotmgPacket {

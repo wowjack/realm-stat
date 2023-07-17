@@ -1,15 +1,11 @@
-use std::io::Write;
-
 use etherparse::SlicedPacket;
-use pcap::{Capture, Active, Inactive, Device};
-
-use crate::{packet_factory, byte_buffer, rotmg_packet::RotmgPacket};
-
+use pcap::Device;
+use crate::packet_factory::{RotmgPacketFactory, rotmg_packet::RotmgPacket};
 
 
 pub struct Sniffer {
     device: Device,
-    factory: packet_factory::RotmgPacketFactory,
+    factory: RotmgPacketFactory,
 }
 impl Sniffer {
     pub fn ask_for_device() -> Self {
@@ -32,7 +28,7 @@ impl Sniffer {
 
         Self {
             device,
-            factory: packet_factory::RotmgPacketFactory::new()
+            factory: RotmgPacketFactory::new()
         }
     }
 
@@ -62,8 +58,8 @@ impl Sniffer {
                 match self.factory.get_packet() {
                     None => break,
                     Some(p) => {
-                        if let RotmgPacket::NewTick { tick_id, tick_time, server_current_time, server_prev_time, rem } = p.clone() {
-                            //log::debug!("Got tick packet: {:?}", p);
+                        if let RotmgPacket::NewTick {..} = p.clone() {
+                            log::debug!("Got tick packet: {:?}", p);
                         } else {
                             //log::debug!("Got packet: {:?}", p);
                         }

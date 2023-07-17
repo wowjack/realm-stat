@@ -71,42 +71,50 @@ impl Rc4 {
     }
 
     /**
-     * Align the cipher's keystream such that decrypting chunk1, n bytes, then chunk 2 will yeild chunk1+1 = chunk2
-     * returns the number that chunk2 decrypts to
+     * Iterate through the keystream until chunk1^key + 1 = chunk2^(key.skip(bytes_between))
      */
-    pub fn align_to(&mut self, chunk1: &[u8], chunk2: &[u8], bytes_between: usize, extra: usize) -> u32 {
+    pub fn align_to(&mut self, chunk1: &[u8], chunk2: &[u8], bytes_between: usize) -> u32 {
         log::debug!("Aligning cipher using {:?} {:?}", chunk1, chunk2);
+        let mut new_cipher = self.clone();
         for i in 0..10_000_000 {
-            let mut cipher = self.clone();
-            cipher.skip(i);
-            let c1 = byteorder::BigEndian::read_u32(&cipher.apply_keystream(0, &chunk1.to_vec()));
-            cipher.skip(bytes_between);
-            let c2 = byteorder::BigEndian::read_u32(&cipher.apply_keystream(0, &chunk2.to_vec()));
-
-            if c1 + 1 == c2 {
-                log::debug!("Found appropriate keystream: c1:{c1} c2:{c2} at offset {i}");
-                cipher.skip(extra);
-                *self = cipher;
-                return c2;
+            let mut tmp_cipher = new_cipher.clone();
+            let r1 = tmp_cipher.apply_keystream(0, &chunk1.to_vec());
+            let r1 = u32::from_be_bytes([r1[0], r1[1], r1[2], r1[3]]);
+            tmp_cipher.skip(bytes_between);
+            let r2 = tmp_cipher.apply_keystream(0, &chunk2.to_vec());
+            let r2 = u32::from_be_bytes([r2[0], r2[1], r2[2], r2[3]]);
+            if r1 + 1 == r2 {
+                *self = new_cipher;
+                return r2
             }
+
+            new_cipher.skip(1);
         }
         log::debug!("Failed to find cipher offset");
-        return 0
+        return 0;
     }
 
-    pub fn align_to_real_tick(&mut self, real_tick: u32, encrypted_tick: &[u8], bytes_between: usize, extra: usize) -> bool {
-        log::debug!("Real tick align {:?} to {real_tick}", encrypted_tick);
-        for i in 0..(bytes_between + 100_000) {
-            let mut cipher = self.clone();
-            cipher.skip(4 + i);
-            let decrypted_tick = byteorder::BigEndian::read_u32(&cipher.apply_keystream(0, &encrypted_tick.to_vec()));
-
-            if decrypted_tick == real_tick {
-                cipher.skip(extra);
-                *self = cipher;
-                log::debug!("Found appropriate offset {i} to align {:?} to {real_tick}", encrypted_tick);
-                return true
+    /**
+     * Iterate through the keystream until encrypted_tick^key = real_tick
+     */
+    pub fn align_to_real_tick(&mut self, real_tick: u32, encrypted_tick: &[u8]) -> bool {
+        //We want to find this sequence of u8s in the keystream
+        let xor_key = (u32::from_be_bytes([encrypted_tick[0], encrypted_tick[1], encrypted_tick[2], encrypted_tick[3]]) ^ real_tick).to_be_bytes();
+        let mut new_cipher = self.clone();
+        for i in 0..(100_000) {
+            let mut tmp_cipher = new_cipher.clone();
+            if tmp_cipher.get_xor() == xor_key[0] {
+                if tmp_cipher.get_xor() == xor_key[1] {
+                    if tmp_cipher.get_xor() == xor_key[2] {
+                        if tmp_cipher.get_xor() == xor_key[3] {
+                            *self = new_cipher;
+                            log::debug!("Found appropriate keystream chunk at offset {}", i+4);
+                            return true;
+                        }
+                    }
+                }
             }
+            new_cipher.skip(1)
         }
         return false
     }
