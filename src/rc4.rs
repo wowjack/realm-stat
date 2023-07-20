@@ -3,8 +3,6 @@ Custom rc4 implementation since crate ones wont work
 */
 #![allow(unused_variables, dead_code)]
 
-use byteorder::ByteOrder;
-
 #[derive(Clone, Debug)]
 pub struct Rc4 {
     key: Vec<u8>,
@@ -106,7 +104,7 @@ impl Rc4 {
         //We want to find this sequence of u8s in the keystream
         let xor_key = (u32::from_be_bytes([encrypted_tick[0], encrypted_tick[1], encrypted_tick[2], encrypted_tick[3]]) ^ real_tick).to_be_bytes();
         let mut new_cipher = self.clone();
-        for i in 0..(1_000_000) {
+        for i in 0..(100_000) {
             let mut tmp_cipher = new_cipher.clone();
             if tmp_cipher.get_xor() == xor_key[0] {
                 if tmp_cipher.get_xor() == xor_key[1] {

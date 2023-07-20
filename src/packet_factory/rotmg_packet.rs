@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::packet_factory::byte_buffer::ByteBuffer;
 
 #[derive(Debug, Clone)]

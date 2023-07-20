@@ -1,12 +1,11 @@
-use std::{collections::VecDeque, thread::current, io::Read};
-use bytemuck::bytes_of;
+use std::collections::VecDeque;
 use byteorder::{BigEndian, ByteOrder};
 use crate::rc4::Rc4;
 use super::{rotmg_packet::RotmgPacket, byte_buffer::ByteBuffer, rotmg_packet_stitcher::StitchedPacket};
 
 
 const IKEY: [u8; 13] = [0xc9, 0x1d, 0x9e, 0xec, 0x42, 0x01, 0x60, 0x73, 0x0d, 0x82, 0x56, 0x04, 0xe0];
-const OKEY: [u8; 13] = [0x5a, 0x4d, 0x20, 0x16, 0xbc, 0x16, 0xdc, 0x64, 0x88, 0x31, 0x94, 0xff, 0xd9];
+const _OKEY: [u8; 13] = [0x5a, 0x4d, 0x20, 0x16, 0xbc, 0x16, 0xdc, 0x64, 0x88, 0x31, 0x94, 0xff, 0xd9];
 
 
 /**
@@ -18,7 +17,7 @@ const OKEY: [u8; 13] = [0x5a, 0x4d, 0x20, 0x16, 0xbc, 0x16, 0xdc, 0x64, 0x88, 0x
  */
 pub struct RotmgPacketConstructor {
     iqueue: VecDeque<StitchedPacket>,
-    oqueue: VecDeque<RotmgPacket>,
+    pub oqueue: VecDeque<RotmgPacket>,
 
     cipher: Rc4,
     current_tick: Option<u32>,
@@ -46,6 +45,8 @@ impl RotmgPacketConstructor {
         //log::debug!("Received packet: {:?}", packet);
         if packet.type_num == 10 { //NewTick packet type number
             self.process_tick(packet);
+        } else if packet.type_num == 45 { //Reconnect packet type number
+            self.reset();
         }
     }
     pub fn get_packet(&mut self) -> Option<RotmgPacket> {
@@ -122,7 +123,7 @@ impl RotmgPacketConstructor {
      * Perhaps attempt to realign in a separate thread to allow reset packets to be processed to reset the cipher. Queueing all packets while realigning may cause memory issues.
      */
     fn try_realign(&mut self, tick_data: ByteBuffer, bytes_between: usize) {
-        log::debug!("Bytes between ticks: {}", bytes_between + tick_data.rem_len()-4);
+        //log::debug!("Bytes between ticks: {}", bytes_between + tick_data.rem_len()-4);
         if let Some((old_bytes, old_cipher)) = self.prev_tick_info.clone() {
             if let Some(expected_tick) = self.current_tick {
                 log::debug!("Attempting to align to real tick");

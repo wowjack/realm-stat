@@ -1,5 +1,6 @@
-use std::path::PathBuf;
+#![allow(dead_code)]
 
+use std::path::PathBuf;
 use etherparse::SlicedPacket;
 use pcap::Device;
 use crate::packet_factory::{RotmgPacketFactory, rotmg_packet::RotmgPacket};
@@ -65,8 +66,8 @@ impl Sniffer {
                 match self.factory.get_packet() {
                     None => break,
                     Some(p) => {
-                        if let RotmgPacket::NewTick {..} = p.clone() {
-                            //log::debug!("Got tick packet: {:?}", p);
+                        if let RotmgPacket::NewTick { tick_id, .. } = p.clone() {
+                            println!("{tick_id}");
                         } else {
                             //log::debug!("Got packet: {:?}", p);
                         }
@@ -109,15 +110,16 @@ impl Sniffer {
                 }
             }
 
+            log::debug!("Getting packets from factory");
             //check for completed packets
             loop {
                 match self.factory.get_packet() {
                     None => break,
                     Some(p) => {
-                        if let RotmgPacket::NewTick {..} = p.clone() {
-                            //log::debug!("Got tick packet: {:?}", p);
+                        if let RotmgPacket::NewTick { tick_id, .. } = p.clone() {
+                            log::debug!("{tick_id}");
                         } else {
-                            //log::debug!("Got packet: {:?}", p);
+                            log::debug!("Got packet: {:?}", p);
                         }
                     }
                 }
