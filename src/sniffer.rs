@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use etherparse::SlicedPacket;
 use pcap::Device;
 use crate::packet_factory::{RotmgPacketFactory, rotmg_packet::RotmgPacket};
@@ -32,6 +34,8 @@ impl Sniffer {
         }
     }
 
+
+
     /**
      * Open the capture handle, set the filter, and begin listening for packets and sending them to the packet factory
      */
@@ -53,13 +57,65 @@ impl Sniffer {
                     Ok(s) => self.process_slice(s, &mut received_nonmax_packet),
                     Err(e) => println!("Packet data error: {}", e)
                 }
+            } else {
+                println!("unknown pcap error");
+                return;
             }
             loop {
                 match self.factory.get_packet() {
                     None => break,
                     Some(p) => {
                         if let RotmgPacket::NewTick {..} = p.clone() {
-                            log::debug!("Got tick packet: {:?}", p);
+                            //log::debug!("Got tick packet: {:?}", p);
+                        } else {
+                            //log::debug!("Got packet: {:?}", p);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn start_using_file(&mut self, path: PathBuf) {
+        if path.is_file() == false {
+            log::debug!("Input file does not exist");
+            return;
+        }
+
+        let mut received_nonmax_packet = false;
+
+        let mut cap = match pcap::Capture::from_file(path) {
+            Ok(c) => c,
+            Err(e) => {
+                println!("pcap capture error: {}", e);
+                return;
+            }
+        };
+        cap.filter("ip proto \\tcp and src port 2050", false).unwrap();
+
+        loop {
+            //read and process packets
+            match cap.next_packet() {
+                Err(e) => {
+                    log::debug!("Error fetching packet: {}", e);
+                    return;
+                },
+                Ok(p) => {
+                    let slice = etherparse::SlicedPacket::from_ethernet(p.data);
+                    match slice {
+                        Ok(s) => self.process_slice(s, &mut received_nonmax_packet),
+                        Err(e) => println!("Packet data error: {}", e)
+                    }
+                }
+            }
+
+            //check for completed packets
+            loop {
+                match self.factory.get_packet() {
+                    None => break,
+                    Some(p) => {
+                        if let RotmgPacket::NewTick {..} = p.clone() {
+                            //log::debug!("Got tick packet: {:?}", p);
                         } else {
                             //log::debug!("Got packet: {:?}", p);
                         }

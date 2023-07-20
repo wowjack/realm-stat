@@ -2,10 +2,10 @@ use byteorder::{BigEndian, ByteOrder};
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ByteBuffer {
-    bytes: Vec<u8>,
-    index: usize,
+    pub bytes: Vec<u8>,
+    pub index: usize,
 }
 impl ByteBuffer {
     pub fn new(bytes: Vec<u8>) -> Self {

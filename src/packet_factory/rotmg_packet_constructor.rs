@@ -1,4 +1,5 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, thread::current, io::Read};
+use bytemuck::bytes_of;
 use byteorder::{BigEndian, ByteOrder};
 use crate::rc4::Rc4;
 use super::{rotmg_packet::RotmgPacket, byte_buffer::ByteBuffer, rotmg_packet_stitcher::StitchedPacket};
@@ -42,8 +43,9 @@ impl RotmgPacketConstructor {
      */
     pub fn insert_packet(&mut self, packet: StitchedPacket) {
         self.iqueue.push_back(packet.clone());
+        //log::debug!("Received packet: {:?}", packet);
         if packet.type_num == 10 { //NewTick packet type number
-            self.check_queue();
+            self.process_tick(packet);
         }
     }
     pub fn get_packet(&mut self) -> Option<RotmgPacket> {
@@ -55,59 +57,56 @@ impl RotmgPacketConstructor {
      * If the tick packet is valid, each packet in the queue will be decrypted and flushed to the output queue
      * If the tick is invalid, try to realign the cipher
      */
-    fn check_queue(&mut self) {
-        let tick = self.iqueue.back().expect("Unexpected error in packet constructor.").clone();
+    fn process_tick(&mut self, tick: StitchedPacket) {
+        //Sometimes duplicate packets arrive
+        //If we get a duplicate tick, clear the entire queue
+        if let Some((old_tick, _)) = &self.prev_tick_info {
+            if old_tick == &tick.data {
+                log::debug!("Duplicate tick!");
+                self.iqueue.clear();
+                return;
+            }
+        }
+
+
         let bytes_in_queue_except_tick = self.iqueue.iter().take(self.iqueue.len()-1).map(|i| i.data.rem_len()).sum();
         let mut new_cipher = self.cipher.clone();
         new_cipher.skip(bytes_in_queue_except_tick);
 
         self.current_tick = match self.current_tick {None=>None, Some(n)=>Some(n+1)};
-        let new_tick = BigEndian::read_u32(&self.cipher.apply_keystream_static(0, &tick.data.read_n_bytes_static(4).unwrap().to_vec()));
+        let new_tick = BigEndian::read_u32(&new_cipher.apply_keystream_static(0, &tick.data.read_n_bytes_static(4).unwrap().to_vec()));
         
-        if let Some((old_tick_data, cipher)) = &self.prev_tick_info {
-            if let Some(current_tick) = self.current_tick {
-                //current tick and prev tick info is defined, expect cipher to be correct
-                if current_tick != new_tick {
-                    //need to realign
-                    log::debug!("Tick packet alignment failure. Expected {current_tick} got {new_tick}");
-                    self.realign(tick.data.clone(), bytes_in_queue_except_tick + old_tick_data.len() - 9);
-                    self.prev_tick_info = Some((tick.data.clone(), new_cipher));
-                    return
-                } else {
-                    //Ticks and cipher are aligned, decrypt and drain the queue
-                    self.prev_tick_info = Some((tick.data.clone(), new_cipher));
+        match self.current_tick {
+            Some(t) => {
+                if t == new_tick {
+                    //alignment is all good
                     self.drain_queue();
+                    self.prev_tick_info = Some((tick.data.clone(), new_cipher));
+                } else {
+                    //need to realign using real tick
+                    log::debug!("Tick counter alignment failure. Got {new_tick} expected {t}");
+                    self.try_realign(tick.data, bytes_in_queue_except_tick);
                 }
-            } else {
-                //current tick is undefined so this is the second tick packet
-                //need to realign
-                log::debug!("Got second tick packet");
-                self.realign(tick.data.clone(), bytes_in_queue_except_tick + old_tick_data.len() - 9);
-                self.prev_tick_info = Some((tick.data.clone(), new_cipher));
-            }
-        } else {
-            if let Some(_) = self.current_tick {
-                //current tick is defined but prev tick isnt, how did you get here?
-                panic!("How did you get here?");
-            } else {
-                log::debug!("Got first tick packet");
-                //this is the first tick packet seen
+            },
+            None => {
                 if new_tick == 0 {
-                    //Decryption is probably correct if the first tick packet decrypts to a tick id of 0
+                    //alignment is probably okay
                     self.current_tick = Some(0);
+                    self.prev_tick_info = Some((tick.data.clone(), new_cipher));
+                } else {
+                    //try to brute force realign
+                    self.try_realign(tick.data, bytes_in_queue_except_tick);
                 }
-                self.iqueue.clear();
-                self.prev_tick_info = Some((tick.data.clone(), new_cipher.clone()))
             }
         }
     }
 
     fn drain_queue(&mut self) {
-        log::debug!("Draining queue");
+        //log::debug!("Draining queue");
         for p in self.iqueue.drain(..) {
             let data = ByteBuffer::new(self.cipher.apply_keystream(5, &p.data.to_vec()));
             if let Ok(rp) = RotmgPacket::try_from(data) {
-                log::debug!("Produced packet {:?}", rp);
+                //log::debug!("Produced packet {:?}", rp);
                 self.oqueue.push_back(rp);
             } else {
                 log::debug!("Error constructing packet");
@@ -122,42 +121,50 @@ impl RotmgPacketConstructor {
      * 
      * Perhaps attempt to realign in a separate thread to allow reset packets to be processed to reset the cipher. Queueing all packets while realigning may cause memory issues.
      */
-    fn realign(&mut self, tick_data: ByteBuffer, bytes_between: usize) {
-        
-        if let Some((old_bytes, cipher)) = &mut self.prev_tick_info {
+    fn try_realign(&mut self, tick_data: ByteBuffer, bytes_between: usize) {
+        log::debug!("Bytes between ticks: {}", bytes_between + tick_data.rem_len()-4);
+        if let Some((old_bytes, old_cipher)) = self.prev_tick_info.clone() {
+            if let Some(expected_tick) = self.current_tick {
+                log::debug!("Attempting to align to real tick");
+                let mut tmp_cipher = old_cipher.clone();
+                if old_cipher.apply_keystream_static(0, &old_bytes.read_n_bytes_static(4).unwrap().to_vec()) != (expected_tick - 1).to_be_bytes().to_vec() {
+                    panic!("Old cipher does not correctly decrypt old tick {}", expected_tick-1);
+                }
+                if tmp_cipher.align_to_real_tick(expected_tick, &tick_data.read_n_bytes_static(4).unwrap()) == true {
+                    log::debug!("Success!");
+                    self.prev_tick_info = Some((tick_data.clone(), tmp_cipher.clone()));
+                    tmp_cipher.skip(tick_data.rem_len());
 
-            log::debug!("Realigning cipher");
-            log::debug!("Bytese between: {bytes_between}");
-            log::debug!("old tick: {:?}", old_bytes);
-            log::debug!("new tick: {:?}", tick_data);
-            for p in self.iqueue.iter() {
-                log::debug!("iqueue: {:?}", p);
-            }
-            let c1: Vec<u8> = old_bytes.read_n_bytes_static(4).unwrap().to_vec();
-            let c2: Vec<u8> = tick_data.read_n_bytes_static(4).unwrap().to_vec();
-
-            //First try to realign the cipher by trying a bunch of different offsets for the second tick until key^second_tick = self.current_tick 
-            if let Some(t) = self.current_tick {
-                let mut new_cipher = cipher.clone();
-                let result = new_cipher.align_to_real_tick(t, &c2);
-                if result == true {
-                    new_cipher.skip(tick_data.len()-5); //align_to_real_tick hands the cipher back before it has decrypted the tick packet
-                    self.cipher = new_cipher;
+                    //The iqueue must be cleared after a real tick align
+                    //Something went wrong with the amount of data in between the two tick packets, so you cannot expect to decrypt those packets without problems
                     self.iqueue.clear();
                     return
                 }
             }
 
-            if c1 == c2 {
-                log::debug!("old and new cipher are the same, resetting");
+            log::debug!("Brute force realigning");
+            //self.cipher.reset();
+            let new_tick = self.cipher.align_to(&old_bytes.read_n_bytes_static(4).unwrap(), &tick_data.read_n_bytes_static(4).unwrap(), bytes_between + old_bytes.rem_len()-4);
+            if new_tick == u32::MAX {
+                //alignment failed
                 self.reset();
-                return;
+                self.prev_tick_info = Some((tick_data, self.cipher.clone()));
+            } else {
+                log::debug!("Success!");
+                self.current_tick = Some(new_tick);
+                self.cipher.skip(old_bytes.rem_len());
+                let mut tmp_cipher = self.cipher.clone();
+                tmp_cipher.skip(bytes_between);
+                self.prev_tick_info = Some((tick_data.clone(), tmp_cipher));
+                self.drain_queue();
             }
-            
-            self.cipher.reset();
-            self.cipher.align_to(&c1, &c2, bytes_between + old_bytes.len() - 9);
-            self.current_tick = Some(self.cipher.align_to(&c1, &c2, bytes_between + old_bytes.len() - 9));
-            self.cipher.skip(tick_data.len()-5);
+
+        } else {
+            log::debug!("Attempted to realign without previous tick info");
+            let mut tmp_cipher = self.cipher.clone();
+            tmp_cipher.reset();
+            self.prev_tick_info = Some((tick_data, tmp_cipher));
+            self.iqueue.clear()
         }
     }
 

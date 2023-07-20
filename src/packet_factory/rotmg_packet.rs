@@ -96,7 +96,7 @@ impl TryFrom<ByteBuffer> for RotmgPacket {
 
     fn try_from(mut buf: ByteBuffer) -> Result<Self, ()> {
         use RotmgPacket::*;
-        let packet_len = buf.read_u32()?;
+        let _packet_len = buf.read_u32()?;
         let packet_type = buf.read_u8()?;
         return Ok(match packet_type {
             0 => Failure { rem: buf },

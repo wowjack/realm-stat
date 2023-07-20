@@ -72,6 +72,8 @@ impl Rc4 {
 
     /**
      * Iterate through the keystream until chunk1^key + 1 = chunk2^(key.skip(bytes_between))
+     * 
+     * Ultimately the cipher ends with an offset directly before correctly encrypting chunk1
      */
     pub fn align_to(&mut self, chunk1: &[u8], chunk2: &[u8], bytes_between: usize) -> u32 {
         log::debug!("Aligning cipher using {:?} {:?}", chunk1, chunk2);
@@ -91,17 +93,20 @@ impl Rc4 {
             new_cipher.skip(1);
         }
         log::debug!("Failed to find cipher offset");
-        return 0;
+        return u32::MAX;
     }
 
     /**
      * Iterate through the keystream until encrypted_tick^key = real_tick
+     * 
+     * Ultimately the cipher ends up with an offset such that applying the keystream to the encrypted tick will yeild the real tick
      */
     pub fn align_to_real_tick(&mut self, real_tick: u32, encrypted_tick: &[u8]) -> bool {
+        log::debug!("Real tick align: {:?} to {real_tick}", encrypted_tick);
         //We want to find this sequence of u8s in the keystream
         let xor_key = (u32::from_be_bytes([encrypted_tick[0], encrypted_tick[1], encrypted_tick[2], encrypted_tick[3]]) ^ real_tick).to_be_bytes();
         let mut new_cipher = self.clone();
-        for i in 0..(100_000) {
+        for i in 0..(1_000_000) {
             let mut tmp_cipher = new_cipher.clone();
             if tmp_cipher.get_xor() == xor_key[0] {
                 if tmp_cipher.get_xor() == xor_key[1] {
