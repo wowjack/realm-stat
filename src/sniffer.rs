@@ -66,10 +66,12 @@ impl Sniffer {
                 match self.factory.get_packet() {
                     None => break,
                     Some(p) => {
-                        if let RotmgPacket::NewTick { tick_id, .. } = p.clone() {
-                            println!("{tick_id}");
-                        } else {
-                            //log::debug!("Got packet: {:?}", p);
+                        match p {
+                            //RotmgPacket::NewTick { tick_id, .. } => println!("{tick_id}"),
+                            //RotmgPacket::Text { name, content, .. } => println!("{name}: {content}"),
+                            //RotmgPacket::Damage { .. } => log::debug!("{:?}", p),
+                            other => log::debug!("{:?}", other),
+                            _ => (),
                         }
                     }
                 }
@@ -110,16 +112,16 @@ impl Sniffer {
                 }
             }
 
-            log::debug!("Getting packets from factory");
             //check for completed packets
             loop {
                 match self.factory.get_packet() {
                     None => break,
                     Some(p) => {
-                        if let RotmgPacket::NewTick { tick_id, .. } = p.clone() {
-                            log::debug!("{tick_id}");
-                        } else {
-                            log::debug!("Got packet: {:?}", p);
+                        match p {
+                            //RotmgPacket::NewTick { tick_id, .. } => println!("{tick_id}"),
+                            RotmgPacket::Text { name, content, .. } => println!("{name}: {content}"),
+                            RotmgPacket::Damage { .. } => log::debug!("{:?}", p),
+                            _ => (),
                         }
                     }
                 }

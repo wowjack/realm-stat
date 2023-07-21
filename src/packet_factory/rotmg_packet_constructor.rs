@@ -63,7 +63,7 @@ impl RotmgPacketConstructor {
         //If we get a duplicate tick, clear the entire queue
         if let Some((old_tick, _)) = &self.prev_tick_info {
             if old_tick == &tick.data {
-                log::debug!("Duplicate tick!");
+                //log::debug!("Duplicate tick!");
                 self.iqueue.clear();
                 return;
             }
@@ -85,7 +85,7 @@ impl RotmgPacketConstructor {
                     self.prev_tick_info = Some((tick.data.clone(), new_cipher));
                 } else {
                     //need to realign using real tick
-                    log::debug!("Tick counter alignment failure. Got {new_tick} expected {t}");
+                    //log::debug!("Tick counter alignment failure. Got {new_tick} expected {t}");
                     self.try_realign(tick.data, bytes_in_queue_except_tick);
                 }
             },
@@ -123,10 +123,10 @@ impl RotmgPacketConstructor {
      * Perhaps attempt to realign in a separate thread to allow reset packets to be processed to reset the cipher. Queueing all packets while realigning may cause memory issues.
      */
     fn try_realign(&mut self, tick_data: ByteBuffer, bytes_between: usize) {
-        //log::debug!("Bytes between ticks: {}", bytes_between + tick_data.rem_len()-4);
         if let Some((old_bytes, old_cipher)) = self.prev_tick_info.clone() {
+            log::debug!("Attempting to realign cipher");
             if let Some(expected_tick) = self.current_tick {
-                log::debug!("Attempting to align to real tick");
+                //log::debug!("Attempting to align to real tick");
                 let mut tmp_cipher = old_cipher.clone();
                 if old_cipher.apply_keystream_static(0, &old_bytes.read_n_bytes_static(4).unwrap().to_vec()) != (expected_tick - 1).to_be_bytes().to_vec() {
                     panic!("Old cipher does not correctly decrypt old tick {}", expected_tick-1);
@@ -143,7 +143,7 @@ impl RotmgPacketConstructor {
                 }
             }
 
-            log::debug!("Brute force realigning");
+            //log::debug!("Brute force realigning");
             //self.cipher.reset();
             let new_tick = self.cipher.align_to(&old_bytes.read_n_bytes_static(4).unwrap(), &tick_data.read_n_bytes_static(4).unwrap(), bytes_between + old_bytes.rem_len()-4);
             if new_tick == u32::MAX {
@@ -161,7 +161,7 @@ impl RotmgPacketConstructor {
             }
 
         } else {
-            log::debug!("Attempted to realign without previous tick info");
+            //log::debug!("Attempted to realign without previous tick info");
             let mut tmp_cipher = self.cipher.clone();
             tmp_cipher.reset();
             self.prev_tick_info = Some((tick_data, tmp_cipher));

@@ -74,7 +74,7 @@ impl Rc4 {
      * Ultimately the cipher ends with an offset directly before correctly encrypting chunk1
      */
     pub fn align_to(&mut self, chunk1: &[u8], chunk2: &[u8], bytes_between: usize) -> u32 {
-        log::debug!("Aligning cipher using {:?} {:?}", chunk1, chunk2);
+        //log::debug!("Aligning cipher using {:?} {:?}", chunk1, chunk2);
         let mut new_cipher = self.clone();
         for i in 0..10_000_000 {
             let mut tmp_cipher = new_cipher.clone();
@@ -85,12 +85,13 @@ impl Rc4 {
             let r2 = u32::from_be_bytes([r2[0], r2[1], r2[2], r2[3]]);
             if r1 + 1 == r2 {
                 *self = new_cipher;
+                //log::debug!("Found appropriate keystream at offset {i}");
                 return r2
             }
 
             new_cipher.skip(1);
         }
-        log::debug!("Failed to find cipher offset");
+        //log::debug!("Failed to find cipher offset");
         return u32::MAX;
     }
 
@@ -100,7 +101,7 @@ impl Rc4 {
      * Ultimately the cipher ends up with an offset such that applying the keystream to the encrypted tick will yeild the real tick
      */
     pub fn align_to_real_tick(&mut self, real_tick: u32, encrypted_tick: &[u8]) -> bool {
-        log::debug!("Real tick align: {:?} to {real_tick}", encrypted_tick);
+        //log::debug!("Real tick align: {:?} to {real_tick}", encrypted_tick);
         //We want to find this sequence of u8s in the keystream
         let xor_key = (u32::from_be_bytes([encrypted_tick[0], encrypted_tick[1], encrypted_tick[2], encrypted_tick[3]]) ^ real_tick).to_be_bytes();
         let mut new_cipher = self.clone();
@@ -111,7 +112,7 @@ impl Rc4 {
                     if tmp_cipher.get_xor() == xor_key[2] {
                         if tmp_cipher.get_xor() == xor_key[3] {
                             *self = new_cipher;
-                            log::debug!("Found appropriate keystream chunk at offset {}", i+4);
+                            //log::debug!("Found appropriate keystream chunk at offset {}", i+4);
                             return true;
                         }
                     }
