@@ -119,7 +119,7 @@ impl RotmgPacketConstructor {
         if self.cipher.align_to_tick(tick_data.read_n_bytes_static(8).unwrap()) == false {
             self.cipher.reset();
             if self.cipher.align_to_tick(tick_data.read_n_bytes_static(8).unwrap()) == false {
-                panic!("Cipher alignment panic! No suitable keystream could be found");
+                return; //Just wait for the next tick
             }
         }
         let mut tick_data = ByteBuffer::new(self.cipher.apply_keystream_static(0, &tick_data.read_n_bytes_static(4).unwrap().to_vec()));

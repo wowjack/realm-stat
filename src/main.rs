@@ -9,7 +9,7 @@ fn main() {
 
     let mut sniffer = Sniffer::ask_for_device();
     sniffer.start();
-    //sniffer.start_using_file("./sample/rotmg.pcap".into());
+    //sniffer.start_using_file("./sample/rotmg_long.pcap".into());
 
     /*
     let mut cipher = rc4::Rc4::new(vec![0xc9, 0x1d, 0x9e, 0xec, 0x42, 0x01, 0x60, 0x73, 0x0d, 0x82, 0x56, 0x04, 0xe0]);

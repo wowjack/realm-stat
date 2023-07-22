@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 use etherparse::SlicedPacket;
 use pcap::Device;
-use crate::packet_factory::{RotmgPacketFactory, rotmg_packet::RotmgPacket};
+use crate::packet_factory::RotmgPacketFactory;
 
 
 pub struct Sniffer {

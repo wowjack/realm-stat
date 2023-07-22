@@ -3,7 +3,6 @@ Custom rc4 implementation since crate ones wont work
 */
 #![allow(unused_variables, dead_code)]
 
-use crate::packet_factory::byte_buffer::ByteBuffer;
 
 #[derive(Clone, Debug)]
 pub struct Rc4 {
