@@ -71,7 +71,7 @@ impl Sniffer {
                             //RotmgPacket::Text { name, content, .. } => println!("{name}: {content}"),
                             //RotmgPacket::Damage { .. } => log::debug!("{:?}", p),
                             other => log::debug!("{:?}", other),
-                            _ => (),
+                            //_ => (),
                         }
                     }
                 }

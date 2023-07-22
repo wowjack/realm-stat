@@ -3,6 +3,8 @@ Custom rc4 implementation since crate ones wont work
 */
 #![allow(unused_variables, dead_code)]
 
+use crate::packet_factory::byte_buffer::ByteBuffer;
+
 #[derive(Clone, Debug)]
 pub struct Rc4 {
     key: Vec<u8>,
@@ -121,5 +123,25 @@ impl Rc4 {
             new_cipher.skip(1)
         }
         return false
+    }
+
+    pub fn align_to_tick(&mut self, tick_data: &[u8]) -> bool {
+        log::debug!("Aligning cipher using epic new method");
+        let mut s_cipher = self.clone();
+        for i in 0..10_000_000 {
+            let mut new_cipher = s_cipher.clone();
+
+            if new_cipher.get_xor()==tick_data[0] && new_cipher.get_xor()==tick_data[1] {
+                new_cipher.skip(2);
+                if new_cipher.get_xor()==tick_data[4] && new_cipher.get_xor()==tick_data[5] && new_cipher.get_xor()==tick_data[6] {
+                    log::debug!("Found appropriate keystream");
+                    *self = s_cipher;
+                    return true;
+                }
+            }
+            s_cipher.skip(1);
+        }
+        log::debug!("Failed to find keystream");
+        return false;
     }
 }

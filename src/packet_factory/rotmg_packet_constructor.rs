@@ -123,6 +123,12 @@ impl RotmgPacketConstructor {
      * Perhaps attempt to realign in a separate thread to allow reset packets to be processed to reset the cipher. Queueing all packets while realigning may cause memory issues.
      */
     fn try_realign(&mut self, tick_data: ByteBuffer, bytes_between: usize) {
+        self.cipher.align_to_tick(tick_data.read_n_bytes_static(8).unwrap());
+        self.iqueue.clear();
+        let mut tick_data = ByteBuffer::new(self.cipher.apply_keystream(0, &tick_data.rem_to_vec()));
+        self.current_tick = Some(tick_data.read_u32().unwrap());
+        return
+
         if let Some((old_bytes, old_cipher)) = self.prev_tick_info.clone() {
             log::debug!("Attempting to realign cipher");
             if let Some(expected_tick) = self.current_tick {

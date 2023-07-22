@@ -8,8 +8,8 @@ fn main() {
     let _ = simple_logging::log_to_file("log.log", log::LevelFilter::Debug);
 
     let mut sniffer = Sniffer::ask_for_device();
-    sniffer.start();
-    //sniffer.start_using_file("./sample/rotmg.pcap".into());
+    //sniffer.start();
+    sniffer.start_using_file("./sample/rotmg.pcap".into());
 
 
     /*
