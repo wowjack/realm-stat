@@ -67,7 +67,7 @@ impl Sniffer {
                     None => break,
                     Some(p) => {
                         match p {
-                            //RotmgPacket::NewTick { tick_id, .. } => println!("{tick_id}"),
+                            //RotmgPacket::NewTick { .. } => println!("{}", self.factory.constructor.cipher.offset),
                             //RotmgPacket::Text { name, content, .. } => println!("{name}: {content}"),
                             //RotmgPacket::Damage { .. } => log::debug!("{:?}", p),
                             other => log::debug!("{:?}", other),
@@ -101,6 +101,7 @@ impl Sniffer {
             match cap.next_packet() {
                 Err(e) => {
                     log::debug!("Error fetching packet: {}", e);
+                    log::debug!("{} in, {} out", self.factory.packets_in, self.factory.packets_out);
                     return;
                 },
                 Ok(p) => {
@@ -119,9 +120,10 @@ impl Sniffer {
                     Some(p) => {
                         match p {
                             //RotmgPacket::NewTick { tick_id, .. } => println!("{tick_id}"),
-                            RotmgPacket::Text { name, content, .. } => println!("{name}: {content}"),
-                            RotmgPacket::Damage { .. } => log::debug!("{:?}", p),
-                            _ => (),
+                            //RotmgPacket::Text { name, content, .. } => println!("{name}: {content}"),
+                            //RotmgPacket::Damage { .. } => log::debug!("{:?}", p),
+                            other => log::debug!("{:?}", other),
+                            //_ => (),
                         }
                     }
                 }

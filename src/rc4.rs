@@ -11,7 +11,8 @@ pub struct Rc4 {
     state: [u8; 256],
     init_state: [u8; 256],
     i: i32,
-    j: i32
+    j: i32,
+    pub offset: usize
 }
 
 
@@ -34,7 +35,8 @@ impl Rc4 {
             state,
             init_state: state.clone(),
             i: 0,
-            j: 0
+            j: 0,
+            offset: 0
         }
     }
 
@@ -44,6 +46,7 @@ impl Rc4 {
     }
 
     pub fn skip(&mut self, amount: usize) {
+        self.offset += amount;
         for k in 0..amount {
             self.i = (self.i + 1) % 256;
             self.j = (self.j + self.state[self.i as usize] as i32) % 256;
@@ -68,78 +71,44 @@ impl Rc4 {
         self.i = 0;
         self.j = 0;
         self.state = self.init_state.clone();
+        self.offset = 0;
+    }
+
+    pub fn reverse(&mut self, amount: usize) {
+        if amount > self.offset {
+            panic!("cannot reverse rc4 greater than offset");
+        }
+        let offset = self.offset - amount;
+        self.reset();
+        self.skip(offset);
     }
 
     /**
-     * Iterate through the keystream until chunk1^key + 1 = chunk2^(key.skip(bytes_between))
+     * Makes some reasonable assumptions about tick packets to align the rc4 cipher.
+     * A massive improvement from the previous version, this method requires no other tick packet or known tick id to align.
      * 
-     * Ultimately the cipher ends with an offset directly before correctly encrypting chunk1
-     */
-    pub fn align_to(&mut self, chunk1: &[u8], chunk2: &[u8], bytes_between: usize) -> u32 {
-        //log::debug!("Aligning cipher using {:?} {:?}", chunk1, chunk2);
-        let mut new_cipher = self.clone();
-        for i in 0..10_000_000 {
-            let mut tmp_cipher = new_cipher.clone();
-            let r1 = tmp_cipher.apply_keystream(0, &chunk1.to_vec());
-            let r1 = u32::from_be_bytes([r1[0], r1[1], r1[2], r1[3]]);
-            tmp_cipher.skip(bytes_between);
-            let r2 = tmp_cipher.apply_keystream(0, &chunk2.to_vec());
-            let r2 = u32::from_be_bytes([r2[0], r2[1], r2[2], r2[3]]);
-            if r1 + 1 == r2 {
-                *self = new_cipher;
-                //log::debug!("Found appropriate keystream at offset {i}");
-                return r2
-            }
-
-            new_cipher.skip(1);
-        }
-        //log::debug!("Failed to find cipher offset");
-        return u32::MAX;
-    }
-
-    /**
-     * Iterate through the keystream until encrypted_tick^key = real_tick
+     * If the tick id is greater than 65_535 this method will fail to align the cipher.
+     * i.e. the player has been in the same area for > 3.64 hours.
      * 
-     * Ultimately the cipher ends up with an offset such that applying the keystream to the encrypted tick will yeild the real tick
+     * If the tick time is greater than 255 this method will fail to align the cipher.
+     * I have not witnessed this happen myself, so it seems pretty uncommon.
+     * 
+     * If the real cipher offset is more than 100 million past the current offset this, method will fail to align the rc4 cipher.
+     * With very minimal testing I think it takes about an hour of activity in one area to reach 100 million.
      */
-    pub fn align_to_real_tick(&mut self, real_tick: u32, encrypted_tick: &[u8]) -> bool {
-        //log::debug!("Real tick align: {:?} to {real_tick}", encrypted_tick);
-        //We want to find this sequence of u8s in the keystream
-        let xor_key = (u32::from_be_bytes([encrypted_tick[0], encrypted_tick[1], encrypted_tick[2], encrypted_tick[3]]) ^ real_tick).to_be_bytes();
-        let mut new_cipher = self.clone();
-        for i in 0..(100_000) {
-            let mut tmp_cipher = new_cipher.clone();
-            if tmp_cipher.get_xor() == xor_key[0] {
-                if tmp_cipher.get_xor() == xor_key[1] {
-                    if tmp_cipher.get_xor() == xor_key[2] {
-                        if tmp_cipher.get_xor() == xor_key[3] {
-                            *self = new_cipher;
-                            //log::debug!("Found appropriate keystream chunk at offset {}", i+4);
-                            return true;
-                        }
-                    }
-                }
-            }
-            new_cipher.skip(1)
-        }
-        return false
-    }
-
     pub fn align_to_tick(&mut self, tick_data: &[u8]) -> bool {
         log::debug!("Aligning cipher using epic new method");
-        let mut s_cipher = self.clone();
-        for i in 0..10_000_000 {
-            let mut new_cipher = s_cipher.clone();
-
-            if new_cipher.get_xor()==tick_data[0] && new_cipher.get_xor()==tick_data[1] {
-                new_cipher.skip(2);
-                if new_cipher.get_xor()==tick_data[4] && new_cipher.get_xor()==tick_data[5] && new_cipher.get_xor()==tick_data[6] {
+        //Rust is pretty damn fast so I can afford tons of iterations
+        //If the proper keystream is within 100 million bytes of the current cipher offset, it will be found
+        for _ in 0..100_000_000 {
+            if self.get_xor()==tick_data[0] && self.get_xor()==tick_data[1] {
+                self.skip(2);
+                if self.get_xor()==tick_data[4] && self.get_xor()==tick_data[5] && self.get_xor()==tick_data[6] {
                     log::debug!("Found appropriate keystream");
-                    *self = s_cipher;
+                    self.reverse(7);
                     return true;
                 }
             }
-            s_cipher.skip(1);
         }
         log::debug!("Failed to find keystream");
         return false;

@@ -16,14 +16,19 @@ use self::rotmg_packet_stitcher::RotmgPacketStitcher;
  * Stitches together, validates, and decrypts packets
  */
 pub struct RotmgPacketFactory {
-    stitcher: RotmgPacketStitcher,
-    constructor: RotmgPacketConstructor
+    pub stitcher: RotmgPacketStitcher,
+    pub constructor: RotmgPacketConstructor,
+
+    pub packets_in: usize,
+    pub packets_out: usize,
 }
 impl RotmgPacketFactory {
     pub fn new() -> Self {
         Self {
             stitcher: RotmgPacketStitcher::new(),
             constructor: RotmgPacketConstructor::new(),
+            packets_in: 0,
+            packets_out: 0
         }
     }
 
@@ -39,6 +44,7 @@ impl RotmgPacketFactory {
 
         //get any packets output by the stitcher and send them to the constructor
         while let Some(p) = self.stitcher.get_packet() {
+            self.packets_in += 1;
             self.constructor.insert_packet(p);
         }
     }
@@ -48,7 +54,12 @@ impl RotmgPacketFactory {
      * Get a rotmg packet from the head of the output queue
      */
     pub fn get_packet(&mut self) -> Option<RotmgPacket> {
-        self.constructor.get_packet()
+        let p = self.constructor.get_packet();
+        match p {
+            Some(_) => self.packets_out += 1,
+            None => (),
+        }
+        return p
     }
 
     
