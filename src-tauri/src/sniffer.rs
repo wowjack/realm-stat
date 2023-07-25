@@ -72,36 +72,37 @@ impl Sniffer {
             let mut cap = pcap::Capture::from_device(device.unwrap().clone())
                 .unwrap()
                 .immediate_mode(true)
+                .timeout(1000)
                 .open()
                 .unwrap();
 
             cap.filter("ip proto \\tcp and src port 2050", false).expect("Error with packet filter");
 
             while *run.lock().unwrap() == true {
-                if let Ok(p) = cap.next_packet() {
-                    let slice = etherparse::SlicedPacket::from_ethernet(p.data);
-                    match slice {
-                        Ok(s) => {
-                            if s.payload.len() == 0 {
-                                continue;
-                            }
-                            if s.payload.len() < 1460 && received_nonmax_packet == false {
-                                received_nonmax_packet = true;
-                                continue;
-                            }
-                            if received_nonmax_packet == true {
-                                let mut factory = factory.lock().expect("RwLock error");
-                                factory.insert_packet(s, &window);
-                                while let Some(p) = factory.get_packet() {
-                                    session_buffer.lock().unwrap().push(p);
+                match cap.next_packet() {
+                    Ok(p) => {
+                        let slice = etherparse::SlicedPacket::from_ethernet(p.data);
+                        match slice {
+                            Ok(s) => {
+                                if s.payload.len() == 0 {
+                                    continue;
                                 }
-                            }
-                        },
-                        Err(e) => println!("Packet data error: {}", e)
-                    }
-                } else {
-                    println!("unknown pcap error");
-                    return;
+                                if s.payload.len() < 1460 && received_nonmax_packet == false {
+                                    received_nonmax_packet = true;
+                                    continue;
+                                }
+                                if received_nonmax_packet == true {
+                                    let mut factory = factory.lock().expect("RwLock error");
+                                    factory.insert_packet(s, &window);
+                                    while let Some(p) = factory.get_packet() {
+                                        session_buffer.lock().unwrap().push(p);
+                                    }
+                                }
+                            },
+                            Err(e) => println!("Packet data error: {}", e)
+                        }
+                    },
+                    Err(e) => println!("pcap error {}", e),   
                 }
             }
             //log::debug!("Collection thread stopping");
