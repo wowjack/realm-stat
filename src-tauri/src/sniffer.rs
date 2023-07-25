@@ -6,13 +6,23 @@ use std::sync::{Arc, Mutex};
 
 
 pub struct Sniffer {
-    device: Device,
+    device: Option<Device>,
     capture_thread: Option<std::thread::JoinHandle<()>>,
     factory: Arc<Mutex<RotmgPacketFactory>>,
     collect: Arc<Mutex<bool>>,
     session_buffer: Arc<Mutex<Vec<RotmgPacket>>>,
 }
 impl Sniffer {
+    pub fn new() -> Self {
+        Self {
+            device: None,
+            capture_thread: None,
+            factory: Arc::new(Mutex::new(RotmgPacketFactory::new())),
+            collect: Arc::new(Mutex::new(false)),
+            session_buffer: Arc::new(Mutex::new(vec![])),
+        }
+    }
+
     pub fn ask_for_device() -> Self {
         let devices = pcap::Device::list().expect("device list failed");
         for (ind, d) in devices.iter().enumerate() {
@@ -32,7 +42,7 @@ impl Sniffer {
         let device = devices[selected as usize].clone();
 
         Self {
-            device,
+            device: Some(device),
             factory: Arc::new(Mutex::new(RotmgPacketFactory::new())),
             capture_thread: None,
             collect: Arc::new(Mutex::new(false)),
@@ -59,7 +69,7 @@ impl Sniffer {
         let handle = std::thread::spawn(move || {
             let mut received_nonmax_packet = false; //Whether or not a packet smaller than the maximum size has been received
 
-            let mut cap = pcap::Capture::from_device(device.clone())
+            let mut cap = pcap::Capture::from_device(device.unwrap().clone())
                 .unwrap()
                 .immediate_mode(true)
                 .open()
@@ -94,7 +104,7 @@ impl Sniffer {
                     return;
                 }
             }
-            log::debug!("Collection thread stopping");
+            //log::debug!("Collection thread stopping");
         });
         self.capture_thread = Some(handle);
     }
@@ -104,7 +114,7 @@ impl Sniffer {
         if let Some(jh) = self.capture_thread.take() {
             let _ = jh.join();
         }
-        log::debug!("Collection stopped");
+        //log::debug!("Collection stopped");
     }
 
     pub fn log_packets(&mut self) {
@@ -118,5 +128,9 @@ impl Sniffer {
 
     pub fn get_all_packets(&mut self) -> Vec<RotmgPacket> {
         self.session_buffer.lock().unwrap().to_vec()
+    }
+
+    pub fn set_device(&mut self, device: &Device) {
+        self.device = Some(device.clone());
     }
 }

@@ -90,26 +90,26 @@ impl Rc4 {
      * i.e. the player has been in the same area for > 3.64 hours.
      * 
      * If the tick time is greater than 255 this method will fail to align the cipher.
-     * I have not witnessed this happen myself, so it seems pretty uncommon.
+     * I have not witnessed this happen myself, so it seems pretty uncommon. Either way if it fails it will just try again on the next tick packet.
      * 
      * If the real cipher offset is more than 100 million past the current offset this, method will fail to align the rc4 cipher.
      * With very minimal testing I think it takes about an hour of activity in one area to reach 100 million.
      */
     pub fn align_to_tick(&mut self, tick_data: &[u8]) -> bool {
-        log::debug!("Aligning cipher using epic new method");
+        //log::debug!("Aligning cipher using epic new method");
         //Rust is pretty damn fast so I can afford tons of iterations
         //If the proper keystream is within 100 million bytes of the current cipher offset, it will be found
         for _ in 0..100_000_000 {
             if self.get_xor()==tick_data[0] && self.get_xor()==tick_data[1] {
                 self.skip(2);
                 if self.get_xor()==tick_data[4] && self.get_xor()==tick_data[5] && self.get_xor()==tick_data[6] {
-                    log::debug!("Found appropriate keystream");
+                    //log::debug!("Found appropriate keystream");
                     self.reverse(7);
                     return true;
                 }
             }
         }
-        log::debug!("Failed to find keystream");
+        //log::debug!("Failed to find keystream");
         return false;
     }
 }
