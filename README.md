@@ -7,4 +7,6 @@ As of right now this just captures and decrypts packets, but more is planned if 
 Hopefully I'll find the motivation to make this useful.
 
 ## Download
-Find the Windows installers
+Download and install [npcap](https://npcap.com/#download). \
+Find the Windows installers and a standalone executable in [releases](https://github.com/wowjack/realm-stat/releases). \
+Support for Mac and Linux is being worked on.
