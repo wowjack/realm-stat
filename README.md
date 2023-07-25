@@ -1,7 +1,6 @@
-# Tauri + React
+# RealmStat
+### A RotMG packet capture tool
 
-This template should help get you started developing with Tauri and React in Vite.
-
-## Recommended IDE Setup
-
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+Thanks to [X-com](https://github.com/X-com) for their work on RealmShark and everyone else credited there. \
+This is essentially a ground up rebuild of RealmShark's packet capture and decryption features. \
+As of right now this just captures and decrypts packets, but more is planned if I feel like.
