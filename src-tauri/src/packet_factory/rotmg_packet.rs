@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use crate::packet_factory::byte_buffer::ByteBuffer;
 
-#[repr(i16)]
+#[repr(u16)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub enum RotmgPacket {
     Failure {
@@ -205,7 +205,7 @@ pub enum RotmgPacket {
     KeyInfoResponse {
         rem: ByteBuffer
     } = 63,
-    AOE {
+    Aoe {
         rem: ByteBuffer
     } = 64,
     GoToAck {
@@ -239,9 +239,54 @@ pub enum RotmgPacket {
         bullet_id: u8,
         owner_id: u32
     } = 75,
-    /**
-     * ADD OTHER PACKET TYPES HERE
-     */
+    ActivePetUpdate {
+        rem: ByteBuffer
+    } = 76,
+    InvitedToGuild {
+        rem: ByteBuffer
+    } = 77,
+    PetYardUpdate {
+        rem: ByteBuffer
+    } = 78,
+    PasswordPrompt {
+        rem: ByteBuffer
+    } = 79,
+    AcceptArenaDeath {
+        rem: ByteBuffer
+    } = 80,
+    UpdateAck {
+        rem: ByteBuffer
+    } = 81,
+    QuestObjectId {
+        rem: ByteBuffer
+    } = 82,
+    Pic {
+        rem: ByteBuffer
+    } = 83,
+    RealmHeroLeftMsg {
+        rem: ByteBuffer
+    } = 84,
+    Buy {
+        rem: ByteBuffer
+    } = 85,
+    TradeStart {
+        rem: ByteBuffer
+    } = 86,
+    EvolvePet {
+        rem: ByteBuffer
+    } = 87,
+    TradeRequested {
+        rem: ByteBuffer
+    } = 88,
+    AoeAck {
+        rem: ByteBuffer
+    } = 89,
+    PlayerHit {
+        rem: ByteBuffer
+    } = 90,
+    CancelTrade {
+        rem: ByteBuffer
+    } = 91,
     MapInfo {
         width: u32,
         height: u32,
@@ -260,10 +305,177 @@ pub enum RotmgPacket {
         unknown_int: u32,
         dungeon_mods: String
     } = 92,
-    /**
-     * ADD OTHER PACKET TYPES HERE
-     */
-    Other {
+    LoginRewardMsg {
+        rem: ByteBuffer
+    } = 93,
+    KeyInfoRequest {
+        rem: ByteBuffer
+    } = 94,
+    InvSwap {
+        rem: ByteBuffer
+    } = 95,
+    QuestRedeemResponse {
+        rem: ByteBuffer
+    } = 96,
+    ChooseName {
+        rem: ByteBuffer
+    } = 97,
+    QuestFetchAsk {
+        rem: ByteBuffer
+    } = 98,
+    AccountList {
+        rem: ByteBuffer
+    } = 99,
+    ShootAck {
+        rem: ByteBuffer
+    } = 100,
+    CreateSuccess {
+        rem: ByteBuffer
+    } = 101,
+    CheckCredits {
+        rem: ByteBuffer
+    } = 102,
+    GroundDamage {
+        rem: ByteBuffer
+    } = 103,
+    GuildInvite {
+        rem: ByteBuffer
+    } = 104,
+    Escape {
+        rem: ByteBuffer
+    } = 105,
+    File {
+        rem: ByteBuffer
+    } = 106,
+    ReskinUnlock {
+        rem: ByteBuffer
+    } = 107,
+    NewCharacterInfo {
+        rem: ByteBuffer
+    } = 108,
+    UnlockInfo {
+        rem: ByteBuffer
+    } = 109,
+    //missing
+    //missing
+    QueueInfo {
+        rem: ByteBuffer
+    } = 112,
+    QueueCancel {
+        rem: ByteBuffer
+    } = 113,
+    ExaltationBonusChanged {
+        rem: ByteBuffer
+    } = 114,
+    RedeemExaltationReward {
+        rem: ByteBuffer
+    } = 115,
+    //missing
+    VaultUpdate {
+        rem: ByteBuffer
+    } = 117,
+    ForgeRequest {
+        rem: ByteBuffer
+    } = 118,
+    ForgeResult {
+        rem: ByteBuffer
+    } = 119,
+    ForgeUnlockedBlueprints {
+        rem: ByteBuffer
+    } = 120,
+    ShootAckCounter {
+        rem: ByteBuffer
+    } = 121,
+    ChangeAllyShoot {
+        rem: ByteBuffer
+    } = 122,
+    GetPlayersListMessage {
+        rem: ByteBuffer
+    } = 123,
+    ModeratorActionMessage {
+        rem: ByteBuffer
+    } = 124,
+    //missing
+    CreepMoveMessage {
+        rem: ByteBuffer
+    } = 126,
+    //missing
+    //missing
+    //missing
+    //missing
+    //missing
+    //missing
+    //missing
+    Unknown134  {
+        rem: ByteBuffer
+    } = 134,
+    //missing
+    //missing
+    Dash {
+        rem: ByteBuffer
+    } = 137,
+    DashAck {
+        rem: ByteBuffer
+    } = 138,
+    Unknown139 {
+        rem: ByteBuffer
+    } = 139,
+    //missing
+    //missing
+    //missing
+    //missing
+    //missing
+    Unknown145 {
+        rem: ByteBuffer
+    } = 145,
+    Unknown146 {
+        rem: ByteBuffer
+    } = 146,
+    Unknown147 {
+        rem: ByteBuffer
+    } = 147,
+    //missing
+    ClaimBattlePass {
+        rem: ByteBuffer
+    } = 149,
+    ClaimBPMilestoneResult {
+        rem: ByteBuffer
+    } = 150,
+    //missing
+    //missing
+    //missing
+    ConvertSeasonal {
+        rem: ByteBuffer
+    } = 154,
+    //missing
+    //missing
+    //missing
+    //missing
+    Emote {
+        rem: ByteBuffer
+    } = 159,
+    //missing
+    //missing
+    //missing
+    Unknown163 {
+        rem: ByteBuffer
+    } = 163,
+    Unknown164 {
+        rem: ByteBuffer
+    } = 164,
+    Unknown165 {
+        rem: ByteBuffer
+    } = 165,
+    Stasis {
+        rem: ByteBuffer
+    } = 166,
+    //missing
+    //missing
+    Unknown169 {
+        rem: ByteBuffer
+    } = 169,
+
+    Other { //catch-all for any packets whose type number is not listed here
         type_num: u8,
         rem: ByteBuffer
     } = 1000,
@@ -335,7 +547,7 @@ impl TryFrom<ByteBuffer> for RotmgPacket {
             61 => Load { rem: buf },
             62 => Move { tick_id: buf.read_u32()?, time: buf.read_u32()?, rem: buf },
             63 => KeyInfoResponse { rem: buf },
-            64 => AOE { rem: buf },
+            64 => Aoe { rem: buf },
             65 => GoToAck { rem: buf },
             66 => GlobalNotification { rem: buf },
             67 => Notification { rem: buf },
@@ -346,9 +558,70 @@ impl TryFrom<ByteBuffer> for RotmgPacket {
                 let target_id = buf.read_u32()?; let effect_len = buf.read_u8()?; let effects = buf.read_n_bytes(effect_len as usize)?.to_vec(); 
                 Damage { target_id, effects, damage_amount: buf.read_u16()?, killed: buf.read_bool()?, armor_piercing: buf.read_bool()?, bullet_id: buf.read_u8()?, owner_id: buf.read_u32()? }
             },
-            //more
+            76 => ActivePetUpdate { rem: buf },
+            77 => InvitedToGuild { rem: buf },
+            78 => PetYardUpdate { rem: buf },
+            79 => PasswordPrompt { rem: buf },
+            80 => AcceptArenaDeath { rem: buf },
+            81 => UpdateAck { rem: buf },
+            82 => QuestObjectId { rem: buf },
+            83 => Pic { rem: buf },
+            84 => RealmHeroLeftMsg { rem: buf },
+            85 => Buy { rem: buf },
+            86 => TradeStart { rem: buf },
+            87 => EvolvePet { rem: buf },
+            88 => TradeRequested { rem: buf },
+            89 => AoeAck { rem: buf },
+            90 => PlayerHit { rem: buf },
+            91 => CancelTrade { rem: buf },
             92 => MapInfo { width: buf.read_u32()?, height: buf.read_u32()?, name: buf.read_string()?, display_name: buf.read_string()?, realm_name: buf.read_string()?, difficulty: buf.read_f32()?, seed: buf.read_u32()?, background: buf.read_u32()?, allow_teleport: buf.read_bool()?, show_displays: buf.read_bool()?, unknown_bool: buf.read_bool()?, max_players: buf.read_u16()?, game_opened_time: buf.read_u32()?, build_version: buf.read_string()?, unknown_int: buf.read_u32()?, dungeon_mods: buf.read_string()? },
-            //more
+            93 => LoginRewardMsg { rem: buf },
+            94 => KeyInfoRequest { rem: buf },
+            95 => InvSwap { rem: buf },
+            96 => QuestRedeemResponse { rem: buf },
+            97 => ChooseName { rem: buf },
+            98 => QuestFetchAsk { rem: buf },
+            99 => AccountList { rem: buf },
+            100 => ShootAck { rem: buf },
+            101 => CreateSuccess { rem: buf },
+            102 => CheckCredits { rem: buf },
+            103 => GroundDamage { rem: buf },
+            104 => GuildInvite { rem: buf },
+            105 => Escape { rem: buf },
+            106 => File { rem: buf },
+            107 => ReskinUnlock { rem: buf },
+            108 => NewCharacterInfo { rem: buf },
+            109 => UnlockInfo { rem: buf },
+            112 => QueueInfo { rem: buf },
+            113 => QueueCancel { rem: buf },
+            114 => ExaltationBonusChanged { rem: buf },
+            115 => RedeemExaltationReward { rem: buf },
+            117 => VaultUpdate { rem: buf },
+            118 => ForgeRequest { rem: buf },
+            119 => ForgeResult { rem: buf },
+            120 => ForgeUnlockedBlueprints { rem: buf },
+            121 => ShootAckCounter { rem: buf },
+            122 => ChangeAllyShoot { rem: buf },
+            123 => GetPlayersListMessage { rem: buf },
+            124 => ModeratorActionMessage { rem: buf },
+            126 => CreepMoveMessage { rem: buf },
+            134 => Unknown134 { rem: buf },
+            137 => Dash { rem: buf },
+            138 => DashAck { rem: buf },
+            139 => Unknown139 { rem: buf },
+            145 => Unknown145 { rem: buf },
+            146 => Unknown146 { rem: buf },
+            147 => Unknown147 { rem: buf },
+            149 => ClaimBattlePass { rem: buf },
+            150 => ClaimBPMilestoneResult { rem: buf },
+            154 => ConvertSeasonal { rem: buf },
+            159 => Emote { rem: buf },
+            163 => Unknown163 { rem: buf },
+            164 => Unknown164 { rem: buf },
+            165 => Unknown165 { rem: buf },
+            166 => Stasis { rem: buf },
+            169 => Unknown169 { rem: buf },
+
             _ => Other { type_num: packet_type, rem: buf},
         })
     }

@@ -137,6 +137,7 @@ impl Sniffer {
                 }
             }
             //log::debug!("Collection thread stopping");
+            window.emit("pcap-eof", ()).expect("Error emitting event");
         });
         self.capture_thread = Some(handle);
     }

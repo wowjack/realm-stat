@@ -28,6 +28,7 @@ export default App;
 function SnifferController({set_packet_list}) {
   const [collecting, set_collecting] = useState(false);
   const [capture_mode, set_capture_mode] = useState("live");
+  const [file_path, set_file_path] = useState("C:\\Users\\wowkn\\Downloads\\rotmg.pcap");
   const [aligned, set_aligned] = useState(false);
   const [read_counter, set_read_counter] = useState(0);
 
@@ -41,15 +42,20 @@ function SnifferController({set_packet_list}) {
   }, [read_counter]);
 
   //event listeners to display the aligned status of the cipher
-  appWindow.listen("cipher-aligned", (e) => {
+  appWindow.listen("cipher-aligned", _ => {
     //debug("Cipher aligned");
     //e.preventDefault();
     set_aligned(true);
   });
-  appWindow.listen("cipher-misaligned", (e) => {
+  appWindow.listen("cipher-misaligned", _ => {
     //debug("Cipher misaligned");
     //e.preventDefault();
     set_aligned(false);
+  });
+  appWindow.listen("pcap-eof", _ => {
+    invoke("get_packets").then(packets => {
+      set_packet_list(packets);
+    });
   });
 
   //Functions to start & stop packet collection
@@ -100,7 +106,9 @@ function SnifferController({set_packet_list}) {
           ) : (
             <div>
               <Form>
-                <Form.Control size="lg" type="file" onChange={e => start_pcap(e.target.value)}></Form.Control>
+                <Form.Control size="lg" type="file" disabled onChange={e => start_pcap(e.target.value)}></Form.Control>
+                <Form.Control size="lg" placeholder="pcap file path" value={file_path} onChange={e => set_file_path(e.target.value)}></Form.Control>
+                <Button variant="success" onClick={() => start_pcap(file_path)}>Analyze pcap</Button>
               </Form>
             </div>
           )}
@@ -125,7 +133,7 @@ function SnifferController({set_packet_list}) {
 function PacketTable({packet_list}) {
   return (
     <Container>
-      <Table style={{"textAlign": "left"}} striped>
+      <Table style={{"textAlign": "left"}} striped hover>
         <thead>
           <tr>
             <th style={{"width": "20%"}}>Packet #</th>
