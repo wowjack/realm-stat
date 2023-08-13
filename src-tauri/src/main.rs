@@ -24,9 +24,7 @@ fn start_collection(sniffer: tauri::State<Arc<Mutex<Sniffer>>>, window: Window) 
 #[tauri::command]
 fn start_pcap(sniffer: tauri::State<Arc<Mutex<Sniffer>>>, window: Window, file_path: String) {
     sniffer.lock().unwrap().start_using_pcap_file(window, file_path.clone());
-    log::debug!("{}", file_path);
-    //panic!("React file picker does not resolve path names correctly. This needs to be fixed.");
-    //todo!();
+    //log::debug!("{}", file_path);
 }
 
 #[tauri::command]
@@ -56,7 +54,7 @@ fn use_device(sniffer: tauri::State<Arc<Mutex<Sniffer>>>, device_string: String)
     return Ok(())
 }
 
-fn main() { 
+fn main() {
     //let _ = simple_logging::log_to_file("log.log", log::LevelFilter::Debug);
     tauri::Builder::default()
         .manage(Arc::new(Mutex::new(Sniffer::new())))

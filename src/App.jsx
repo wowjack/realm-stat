@@ -1,6 +1,7 @@
 //import 'bootstrap/dist/css/bootstrap.min.css';
 import { Button, ButtonGroup, Container, Table, Badge, Modal, Col, Row, Form } from "react-bootstrap";
 import { invoke,  } from "@tauri-apps/api/tauri";
+import { open } from "@tauri-apps/api/dialog";
 import { appWindow } from "@tauri-apps/api/window";
 import { debug } from "tauri-plugin-log-api";
 import "./App.css";
@@ -28,7 +29,6 @@ export default App;
 function SnifferController({set_packet_list}) {
   const [collecting, set_collecting] = useState(false);
   const [capture_mode, set_capture_mode] = useState("live");
-  const [file_path, set_file_path] = useState("C:\\Users\\wowkn\\Downloads\\rotmg.pcap");
   const [aligned, set_aligned] = useState(false);
   const [read_counter, set_read_counter] = useState(0);
 
@@ -82,6 +82,13 @@ function SnifferController({set_packet_list}) {
     set_packet_list(packets);
   }
 
+  function select_file_dialog() {
+    open({"filters": [{"name": "PCAP", "extensions": ["pcap"]}]}).then(p => {
+      if (p == null) return;
+      start_pcap(p);
+    });
+  }
+
   return (
     <Container fluid>
       <Row>
@@ -106,9 +113,7 @@ function SnifferController({set_packet_list}) {
           ) : (
             <div>
               <Form>
-                <Form.Control size="lg" type="file" disabled onChange={e => start_pcap(e.target.value)}></Form.Control>
-                <Form.Control size="lg" placeholder="pcap file path" value={file_path} onChange={e => set_file_path(e.target.value)}></Form.Control>
-                <Button variant="success" onClick={() => start_pcap(file_path)}>Analyze pcap</Button>
+                <Button size="lg" variant="success" onClick={select_file_dialog}>Select File</Button>
               </Form>
             </div>
           )}
@@ -142,7 +147,7 @@ function PacketTable({packet_list}) {
         </thead>
         <tbody>
           {packet_list.map((p, i) => 
-            <tr>
+            <tr key={i}>
               <td>{i}</td>
               <td>{JSON.stringify(p)}</td>
             </tr>
