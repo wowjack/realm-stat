@@ -22,6 +22,14 @@ fn start_collection(sniffer: tauri::State<Arc<Mutex<Sniffer>>>, window: Window) 
 }
 
 #[tauri::command]
+fn start_pcap(sniffer: tauri::State<Arc<Mutex<Sniffer>>>, window: Window, file_path: String) {
+    sniffer.lock().unwrap().start_using_pcap_file(window, file_path.clone());
+    log::debug!("{}", file_path);
+    //panic!("React file picker does not resolve path names correctly. This needs to be fixed.");
+    //todo!();
+}
+
+#[tauri::command]
 fn stop_collection(sniffer: tauri::State<Arc<Mutex<Sniffer>>>) {
     //log::debug!("Stopping collection");
     sniffer.lock().unwrap().stop(); 
@@ -53,7 +61,14 @@ fn main() {
     tauri::Builder::default()
         .manage(Arc::new(Mutex::new(Sniffer::new())))
         .plugin(tauri_plugin_log::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![start_collection, stop_collection, get_packets, get_devices, use_device])
+        .invoke_handler(tauri::generate_handler![
+            start_collection,
+            start_pcap,
+            stop_collection,
+            get_packets,
+            get_devices,
+            use_device
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

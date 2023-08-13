@@ -1,5 +1,5 @@
 //import 'bootstrap/dist/css/bootstrap.min.css';
-import { Button, ButtonGroup, Container, Table, Badge, Modal, Col, Row } from "react-bootstrap";
+import { Button, ButtonGroup, Container, Table, Badge, Modal, Col, Row, Form } from "react-bootstrap";
 import { invoke,  } from "@tauri-apps/api/tauri";
 import { appWindow } from "@tauri-apps/api/window";
 import { debug } from "tauri-plugin-log-api";
@@ -17,24 +17,7 @@ function App() {
         <p>RotMG Packet Capture and Analysis</p>
       </header>
       <SnifferController set_packet_list={set_packet_list}/>
-      <Container>
-        <Table style={{"textAlign": "left"}} striped>
-          <thead>
-            <tr>
-              <th style={{"width": "20%"}}>Packet #</th>
-              <th>Tick ID</th>
-            </tr>
-          </thead>
-          <tbody>
-            {packet_list.map((p, i) => 
-              <tr>
-                <td>{i}</td>
-                <td>{JSON.stringify(p)}</td>
-              </tr>
-            )}
-          </tbody>
-        </Table>
-      </Container>
+      <PacketTable packet_list={packet_list}/>
       <SelectDeviceModal />
     </div>
   );
@@ -42,9 +25,9 @@ function App() {
 
 export default App;
 
-
-function SnifferController({packet_list, set_packet_list}) {
+function SnifferController({set_packet_list}) {
   const [collecting, set_collecting] = useState(false);
+  const [capture_mode, set_capture_mode] = useState("live");
   const [aligned, set_aligned] = useState(false);
   const [read_counter, set_read_counter] = useState(0);
 
@@ -75,6 +58,10 @@ function SnifferController({packet_list, set_packet_list}) {
     await invoke("start_collection");
     set_collecting(true);
   }
+  async function start_pcap(file_path) {
+    await invoke("start_pcap", {"filePath": file_path})
+  }
+
   async function stop() {
     await invoke("stop_collection");
     set_collecting(false);
@@ -90,21 +77,70 @@ function SnifferController({packet_list, set_packet_list}) {
   }
 
   return (
-    <Container>
-      <ButtonGroup>
-        <Button onClick={start} disabled={collecting} variant="success">Start</Button>
-        <Button onClick={stop} disabled={!collecting} variant="danger">Stop</Button>
-      </ButtonGroup>
+    <Container fluid>
+      <Row>
+        <Col>
+          {capture_mode=="live" ? (
+            <Container fluid>
+              <ButtonGroup size="lg">
+                <Button onClick={start} disabled={collecting} variant="success">Start</Button>
+                <Button onClick={stop} disabled={!collecting} variant="danger">Stop</Button>
+              </ButtonGroup>
+              <br />
+              {collecting ? (
+                aligned ? (
+                  <Badge bg="success" style={{fontSize: "120%"}}>Cipher Aligned</Badge>
+                ) : (
+                  <Badge bg="danger" style={{fontSize: "120%"}}>Cipher Misaligned</Badge>
+                )
+              ) : (
+                <Badge bg="secondary" style={{fontSize: "120%"}}>Cipher Paused</Badge>
+              )}
+            </Container>
+          ) : (
+            <div>
+              <Form>
+                <Form.Control size="lg" type="file" onChange={e => start_pcap(e.target.value)}></Form.Control>
+              </Form>
+            </div>
+          )}
+        </Col>
+        <Col>
+          <Form.Select size="lg" onChange={e => {
+            set_capture_mode(e.target.value)
+            //debug(e.target.value)
+          }}>
+            <option value="live">Live Capture</option>
+            <option value="pcap">Read From Pcap File</option>
+          </Form.Select>
+        </Col>
+      </Row>
       <br/>
-      {collecting ? (
-        aligned ? (
-          <Badge bg="success" style={{fontSize: "120%"}}>Cipher Aligned</Badge>
-        ) : (
-          <Badge bg="danger" style={{fontSize: "120%"}}>Cipher Misaligned</Badge>
-        )
-      ) : (
-        <Badge bg="secondary" style={{fontSize: "120%"}}>Cipher Paused</Badge>
-      )}
+      
+
+    </Container>
+  )
+}
+
+function PacketTable({packet_list}) {
+  return (
+    <Container>
+      <Table style={{"textAlign": "left"}} striped>
+        <thead>
+          <tr>
+            <th style={{"width": "20%"}}>Packet #</th>
+            <th>Tick ID</th>
+          </tr>
+        </thead>
+        <tbody>
+          {packet_list.map((p, i) => 
+            <tr>
+              <td>{i}</td>
+              <td>{JSON.stringify(p)}</td>
+            </tr>
+          )}
+        </tbody>
+      </Table>
     </Container>
   )
 }
@@ -132,8 +168,8 @@ function SelectDeviceModal() {
 
   return (
     <div>
-      <Modal show={show}>
-        <Modal.Header><h1>Select network adapter</h1></Modal.Header>
+      <Modal show={show} onHide={() => set_show(false)}>
+        <Modal.Header closeButton><h1>Select network adapter</h1></Modal.Header>
         <Modal.Body>
           <Table>
             <thead>
@@ -142,9 +178,9 @@ function SelectDeviceModal() {
               </tr>
             </thead>
             <tbody>
-              {devices.map((d) => {
+              {devices.map((d, index) => {
                 return (
-                  <tr>
+                  <tr key={index}>
                     <td>
                       <Row>
                         <Col>{d}</Col>
@@ -161,4 +197,3 @@ function SelectDeviceModal() {
     </div>
   )
 }
-

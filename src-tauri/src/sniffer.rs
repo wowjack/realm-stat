@@ -23,37 +23,9 @@ impl Sniffer {
         }
     }
 
-    pub fn ask_for_device() -> Self {
-        let devices = pcap::Device::list().expect("device list failed");
-        for (ind, d) in devices.iter().enumerate() {
-            println!("{ind}: {}", d.clone().desc.unwrap_or("Error".to_string()));
-        }
-        let mut selected = std::usize::MAX;
-        while selected >= devices.len() {
-            let mut input = String::new();
-            print!("Select Network Adapter: ");
-            let _ = std::io::Write::flush(&mut std::io::stdout());
-            let _ = std::io::stdin().read_line(&mut input);
-            if let Ok(ind) = input.trim_end().parse::<usize>() {
-                selected = ind;
-            }
-        }
-        
-        let device = devices[selected as usize].clone();
-
-        Self {
-            device: Some(device),
-            factory: Arc::new(Mutex::new(RotmgPacketFactory::new())),
-            capture_thread: None,
-            collect: Arc::new(Mutex::new(false)),
-            session_buffer: Arc::new(Mutex::new(vec![])),
-        }
-    }
-
-
-
     /**
-     * Open the capture handle, set the filter, and begin listening for packets and sending them to the packet factory
+     * Open the capture handle, set the filter, and begin listening for packets and sending them to the packet factory.
+     * A tauri window is required to inform the ui of changes in the cipher alignment
      */
     pub fn start(&mut self, window: tauri::Window) {
         {
@@ -110,12 +82,72 @@ impl Sniffer {
         self.capture_thread = Some(handle);
     }
 
+    /**
+     * Open a capture handle to a pcap file, set the filter, and begin processing packets
+     */
+    pub fn start_using_pcap_file(&mut self, window: tauri::Window, file_path: String) {
+        {
+            *self.collect.lock().unwrap() = true;
+            self.factory.lock().unwrap().reset();
+            self.session_buffer.lock().unwrap().clear();
+        }
+        let factory = self.factory.clone();
+        let session_buffer = self.session_buffer.clone();
+        let handle = std::thread::spawn(move || {
+            let mut received_nonmax_packet = false; //Whether or not a packet smaller than the maximum size has been received
+
+            let mut cap = match pcap::Capture::from_file(file_path) {
+                Err(e) => {
+                    log::debug!("{:?}", e);
+                    return;
+                },
+                Ok(c) => c
+            };
+
+            if let Err(e) = cap.filter("ip proto \\tcp and src port 2050", false) {
+                log::debug!("{:?}", e);
+                return;
+            }
+
+            loop {
+                match cap.next_packet() {
+                    Err(_) => break,
+                    Ok(p) => {
+                        let slice = etherparse::SlicedPacket::from_ethernet(p.data);
+                        match slice {
+                            Ok(s) => {
+                                if s.payload.len() == 0 {
+                                    continue;
+                                }
+                                if s.payload.len() < 1460 && received_nonmax_packet == false {
+                                    received_nonmax_packet = true;
+                                    continue;
+                                }
+                                if received_nonmax_packet == true {
+                                    let mut factory = factory.lock().expect("RwLock error");
+                                    factory.insert_packet(s, &window);
+                                    while let Some(p) = factory.get_packet() {
+                                        session_buffer.lock().unwrap().push(p);
+                                    }
+                                }
+                            },
+                            Err(e) => println!("Packet data error: {}", e)
+                        }
+                    },   
+                }
+            }
+            //log::debug!("Collection thread stopping");
+        });
+        self.capture_thread = Some(handle);
+    }
+
     pub fn stop(&mut self) {
         *self.collect.lock().unwrap() = false;
         if let Some(jh) = self.capture_thread.take() {
             let _ = jh.join();
         }
         //log::debug!("Collection stopped");
+
     }
 
     pub fn log_packets(&mut self) {
