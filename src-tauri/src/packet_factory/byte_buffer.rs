@@ -84,6 +84,28 @@ impl ByteBuffer {
         String::from_utf8(byte_string.to_vec()).or(Err(()))
     }
 
+    pub fn read_compressed_i32(&mut self) -> Result<i32, ()> {
+        let mut ubyte = self.read_u8()? as i32;
+        let is_negative = (ubyte & 64) != 0;
+        let mut shift = 6u32;
+        let mut value = (ubyte & 63) as i32;
+
+        while (ubyte & 128) != 0 {
+            ubyte = self.read_u8()? as i32;
+            value |= (ubyte & 127) << shift;
+            shift += 7;
+        }
+        return Ok(if is_negative {-1*value} else {value})
+    }
+
+    pub fn read_compressed_i32_arr(&mut self) -> Result<Vec<i32>, ()> {
+        let mut ret = vec![];
+        for _ in 0..self.read_compressed_i32()? {
+            ret.push(self.read_compressed_i32()?);
+        }
+        Ok(ret)
+    }
+
     pub fn to_vec(&self) -> Vec<u8> {
         self.bytes.clone()
     }

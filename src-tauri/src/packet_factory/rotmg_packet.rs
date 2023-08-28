@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 use crate::packet_factory::byte_buffer::ByteBuffer;
+use super::data_types::*;
 
 #[repr(u16)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -129,12 +130,12 @@ pub enum RotmgPacket {
         rem: ByteBuffer
     } = 41,
     Update {
-        level_type: u8,
-        position: PositionData,
-        tiles: Vec<GroundTileData>,
-        new_objects: Vec<ObjectData>,
-        drops: Vec<u32>,
-        rem: ByteBuffer,
+        //position: PositionData,
+        //level: u8, //unknown
+        //ground_tile_data: Vec<GroundTileData>,
+        //object_data: Vec<ObjectData>,
+        //drops: Vec<i32>,
+        rem: ByteBuffer
     } = 42,
     //missing
     Text {
@@ -532,7 +533,7 @@ impl TryFrom<ByteBuffer> for RotmgPacket {
             39 => VerifyEmail { rem: buf },
             40 => SquareHit { rem: buf },
             41 => NewAbility { rem: buf },
-            42 => Update { position: PositionData::read_from_buf(&mut buf)?, level_type: todo!(), tiles: todo!(), new_objects: todo!(), drops: todo!(), rem: buf },
+            42 => Update { rem: buf },//{ position: PositionData::deserialize_from_buf(&mut buf)?, level: buf.read_u8()?, ground_tile_data: GroundTileData::deserialize_arr_from_buf(&mut buf)?, object_data: ObjectData::deserialize_arr_from_buf(&mut buf)?, drops: buf.read_compressed_i32_arr()?, rem: buf },
             44 => Text { name: buf.read_string()?, object_id: buf.read_u32()?, num_stars: buf.read_u16()?, display_time: buf.read_u8()?, recipient: buf.read_string()?, content: buf.read_string()?, clean_text: buf.read_string()?, is_supporter: buf.read_bool()?, star_background: buf.read_u32()? },
             45 => Reconnect { name: buf.read_string()?, host: buf.read_string()?, unknown: buf.read_u32()?, port: buf.read_u32()?, game_id: buf.read_u32()?, key: buf.rem_to_vec() },
             46 => Death { rem: buf },
@@ -629,38 +630,5 @@ impl TryFrom<ByteBuffer> for RotmgPacket {
 
             _ => Other { type_num: packet_type, rem: buf},
         })
-    }
-}
-
-
-pub struct NewTick {
-    tick_id: u32,
-    tick_time: u32,
-    server_current_time: u32,
-    server_prev_time: u16,
-    status: Vec<u8>
-}
-impl TryFrom<ByteBuffer> for NewTick {
-    type Error = ();
-
-    fn try_from(mut buf: ByteBuffer) -> Result<Self, ()> {
-        Ok(Self {
-            tick_id: buf.read_u32()?,
-            tick_time: buf.read_u32()?,
-            server_current_time: buf.read_u32()?,
-            server_prev_time: buf.read_u16()?,
-            status: buf.rem_to_vec()
-        })
-    }
-}
-
-#[derive(Debug)]
-pub struct PositionData {
-    x: f32,
-    y: f32
-}
-impl PositionData {
-    pub fn read_from_buf(buf: &mut ByteBuffer) -> Result<Self, ()> {
-        Ok(Self { x: buf.read_f32()?, y: buf.read_f32()? })
     }
 }

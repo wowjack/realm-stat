@@ -51,6 +51,7 @@ impl Sniffer {
             cap.filter("ip proto \\tcp and src port 2050", false).expect("Error with packet filter");
 
             while *run.lock().unwrap() == true {
+                log::debug!("sniffer is running");
                 match cap.next_packet() {
                     Ok(p) => {
                         let slice = etherparse::SlicedPacket::from_ethernet(p.data);

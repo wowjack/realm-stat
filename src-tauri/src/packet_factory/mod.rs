@@ -1,5 +1,6 @@
 pub mod rotmg_packet;
 pub mod byte_buffer;
+pub mod data_types;
 mod rotmg_packet_constructor;
 mod rotmg_packet_stitcher;
 
