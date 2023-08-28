@@ -54,16 +54,21 @@ impl Rc4 {
     }
 
     pub fn apply_keystream(&mut self, offset: usize, bytes: &Vec<u8>) -> Vec<u8> {
-        bytes.clone().into_iter().take(offset).chain(bytes.iter().skip(offset).map(|b| *b ^ self.get_xor())).collect()
+        bytes.clone().into_iter().take(offset).chain(bytes.iter().skip(offset).map(|b| *b ^ self.get_keystream_byte())).collect()
     }
 
     pub fn apply_keystream_static(&self, offset: usize, bytes: &Vec<u8>) -> Vec<u8> {
         self.clone().apply_keystream(offset, bytes)
     }
 
-    fn get_xor(&mut self) -> u8 {
+    fn get_keystream_byte(&mut self) -> u8 {
         self.skip(1);
         return self.state[(self.state[self.i as usize] as usize + self.state[self.j as usize] as usize) % 256]
+    }
+
+    fn get_n_keystream_bytes_static(&self, amount: usize) -> Vec<u8> {
+        let mut tmp_cipher = self.clone();
+        (0..amount).map(|_| tmp_cipher.get_keystream_byte()).collect()
     }
 
     pub fn reset(&mut self) {
@@ -96,18 +101,29 @@ impl Rc4 {
      * With very minimal testing I think it takes about an hour of activity in one area to reach 100 million.
      */
     pub fn align_to_tick(&mut self, tick_data: &[u8]) -> bool {
-        //log::debug!("Aligning cipher using epic new method");
-        //Rust is pretty damn fast so I can afford tons of iterations
         //If the proper keystream is within 100 million bytes of the current cipher offset, it will be found
+        //Perhaps use itertools windows to improve search using composition
+
         for _ in 0..100_000_000 {
-            if self.get_xor()==tick_data[0] && self.get_xor()==tick_data[1] {
-                self.skip(2);
-                if self.get_xor()==tick_data[4] && self.get_xor()==tick_data[5] && self.get_xor()==tick_data[6] {
-                    //log::debug!("Found appropriate keystream");
-                    self.reverse(7);
-                    return true;
-                }
+            let window = self.get_n_keystream_bytes_static(7);
+            if window[0] == tick_data[0] &&
+                window[1] == tick_data[1] &&
+                window[4] == tick_data[4] &&
+                window[5] == tick_data[5] &&
+                window[6] == tick_data[6] 
+            {
+                return true;
             }
+            self.skip(1);
+
+            // if self.get_keystream_byte()==tick_data[0] && self.get_keystream_byte()==tick_data[1] {
+            //     self.skip(2);
+            //     if self.get_keystream_byte()==tick_data[4] && self.get_keystream_byte()==tick_data[5] && self.get_keystream_byte()==tick_data[6] {
+            //         //log::debug!("Found appropriate keystream");
+            //         self.reverse(7);
+            //         return true;
+            //     }
+            // }
         }
         //log::debug!("Failed to find keystream");
         return false;
