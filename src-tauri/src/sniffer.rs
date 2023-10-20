@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
-use pcap::Device;
+use etherparse::{TransportSlice, InternetSlice, SlicedPacket};
+use pcap::{Device, Packet};
 use crate::packet_factory::{RotmgPacketFactory, rotmg_packet::RotmgPacket};
 use std::sync::{Arc, Mutex};
 
@@ -51,30 +52,9 @@ impl Sniffer {
             cap.filter("ip proto \\tcp and src port 2050", false).expect("Error with packet filter");
 
             while *run.lock().unwrap() == true {
-                log::debug!("sniffer is running");
+                //log::debug!("sniffer is running");
                 match cap.next_packet() {
-                    Ok(p) => {
-                        let slice = etherparse::SlicedPacket::from_ethernet(p.data);
-                        match slice {
-                            Ok(s) => {
-                                if s.payload.len() == 0 {
-                                    continue;
-                                }
-                                if s.payload.len() < 1460 && received_nonmax_packet == false {
-                                    received_nonmax_packet = true;
-                                    continue;
-                                }
-                                if received_nonmax_packet == true {
-                                    let mut factory = factory.lock().expect("RwLock error");
-                                    factory.insert_packet(s, &window);
-                                    while let Some(p) = factory.get_packet() {
-                                        session_buffer.lock().unwrap().push(p);
-                                    }
-                                }
-                            },
-                            Err(e) => println!("Packet data error: {}", e)
-                        }
-                    },
+                    Ok(p) => Self::process_packet(p, &mut received_nonmax_packet, &window, &factory, &session_buffer),
                     Err(e) => println!("pcap error {}", e),   
                 }
             }
@@ -113,34 +93,46 @@ impl Sniffer {
             loop {
                 match cap.next_packet() {
                     Err(_) => break,
-                    Ok(p) => {
-                        let slice = etherparse::SlicedPacket::from_ethernet(p.data);
-                        match slice {
-                            Ok(s) => {
-                                if s.payload.len() == 0 {
-                                    continue;
-                                }
-                                if s.payload.len() < 1460 && received_nonmax_packet == false {
-                                    received_nonmax_packet = true;
-                                    continue;
-                                }
-                                if received_nonmax_packet == true {
-                                    let mut factory = factory.lock().expect("RwLock error");
-                                    factory.insert_packet(s, &window);
-                                    while let Some(p) = factory.get_packet() {
-                                        session_buffer.lock().unwrap().push(p);
-                                    }
-                                }
-                            },
-                            Err(e) => println!("Packet data error: {}", e)
-                        }
-                    },   
+                    Ok(p) => Self::process_packet(p, &mut received_nonmax_packet, &window, &factory, &session_buffer),   
                 }
             }
             //log::debug!("Collection thread stopping");
             window.emit("pcap-eof", ()).expect("Error emitting event");
         });
         self.capture_thread = Some(handle);
+    }
+
+    fn process_packet(p: Packet, received_nonmax_packet: &mut bool, window: &tauri::Window, factory: &Arc<Mutex<RotmgPacketFactory>>, session_buffer: &Arc<Mutex<Vec<RotmgPacket>>>) {
+        let slice = etherparse::SlicedPacket::from_ethernet(&(*p));
+        match slice {
+            Ok(s) => {
+                if let (InternetSlice::Ipv4(ip_h, _), TransportSlice::Tcp(tcp_h)) = (s.clone().ip.expect("No ipv4 header"), s.clone().transport.expect("No tcp header")) {
+                    //log::debug!("{}", ip_h.payload_len() - (tcp_h.data_offset() as u16 * 4));
+                    if ip_h.payload_len() - (tcp_h.data_offset() as u16 * 4) <= 0 {
+                        return
+                    }
+                    
+                }
+                let payload_len = match (s.clone().ip, s.clone().transport) {
+                    (Some(InternetSlice::Ipv4(ip_h, _)), Some(TransportSlice::Tcp(tcp_h))) => ip_h.payload_len() - (tcp_h.data_offset() as u16 * 4),
+                    (Some(InternetSlice::Ipv6(ip_h, _)), Some(TransportSlice::Tcp(tcp_h))) => ip_h.payload_length() - (tcp_h.data_offset() as u16 * 4),
+                    _ => 0
+                };
+                if payload_len <= 0 { return }
+                
+                if s.payload.len() < 1460 && *received_nonmax_packet == false {
+                    *received_nonmax_packet = true;
+                }
+                if *received_nonmax_packet == true {
+                    let mut factory = factory.lock().expect("RwLock error");
+                    factory.insert_packet(s, &window);
+                    while let Some(p) = factory.get_packet() {
+                        session_buffer.lock().unwrap().push(p);
+                    }
+                }
+            },
+            Err(e) => println!("Packet data error: {}", e)
+        }
     }
 
     pub fn stop(&mut self) {

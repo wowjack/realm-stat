@@ -37,6 +37,8 @@ impl RotmgPacketStitcher {
 
             let next_packet_len = byteorder::BigEndian::read_u32(&[self.iqueue[0], self.iqueue[1], self.iqueue[2], self.iqueue[3]]);
 
+            //log::debug!("Expecting packet of size {next_packet_len}, {:?}", self.iqueue.as_slices());
+
             //return if the input queue isn't long enough to create another rotmg packet
             if self.iqueue.len() < next_packet_len as usize {
                 return

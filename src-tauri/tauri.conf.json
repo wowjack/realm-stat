@@ -6,11 +6,16 @@
     "distDir": "../dist",
     "withGlobalTauri": false
   },
+
   "package": {
     "productName": "realm-stat",
     "version": "0.0.0"
   },
+
   "tauri": {
+    "pattern": {
+      "use": "brownfield"
+    },
     "allowlist": {
       "all": false,
       "shell": {
