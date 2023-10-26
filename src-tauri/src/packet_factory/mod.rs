@@ -49,25 +49,28 @@ impl RotmgPacketFactory {
     }
 
 
-    /**
-     * Get a rotmg packet from the head of the output queue
-     */
+    
+    /// Get a rotmg packet from the head of the output queue
     pub fn get_packet(&mut self) -> Option<RotmgPacket> {
         self.oqueue.lock().unwrap().pop_front()
     }
 
+    /// Get all the rotmg packets from the the output queue
     pub fn get_packets(&mut self) -> Vec<RotmgPacket> {
         let mut oqueue = self.oqueue.lock().unwrap();
         let len = oqueue.len();
         oqueue.drain(0..len).collect()
     }
 
+    /// Completely clear and reset the packet factory
+    ///* Clear and reser the packet stitcher
+    ///* Clear and reset the packet constructor
+    ///* Clear the output queue
     pub fn reset(&mut self) {
         self.stitcher.reset();
         self.constructor.reset();
+        self.oqueue.lock().unwrap().clear();
     }
-
-    
 }
 
 

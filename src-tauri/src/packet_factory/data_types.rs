@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use super::byte_buffer::ByteBuffer;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
