@@ -18,12 +18,12 @@ mod sniffer;
 #[tauri::command]
 fn start_collection(sniffer: tauri::State<Arc<Mutex<Sniffer>>>, window: Window) {
     //log::debug!("Starting collection"); 
-    sniffer.lock().unwrap().start(window);
+    sniffer.lock().unwrap().start();
 }
 
 #[tauri::command]
 fn start_pcap(sniffer: tauri::State<Arc<Mutex<Sniffer>>>, window: Window, file_path: String) {
-    sniffer.lock().unwrap().start_using_pcap_file(window, file_path.clone());
+    sniffer.lock().unwrap().start_using_pcap_file(file_path.clone(), window);
     //log::debug!("{}", file_path);
 }
 

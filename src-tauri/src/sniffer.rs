@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use etherparse::{TransportSlice, InternetSlice, SlicedPacket};
+use etherparse::{TransportSlice, InternetSlice};
 use pcap::{Device, Packet};
 use crate::packet_factory::{RotmgPacketFactory, rotmg_packet::RotmgPacket};
 use std::sync::{Arc, Mutex};
@@ -28,12 +28,12 @@ impl Sniffer {
      * Open the capture handle, set the filter, and begin listening for packets and sending them to the packet factory.
      * A tauri window is required to inform the ui of changes in the cipher alignment
      */
-    pub fn start(&mut self, window: tauri::Window) {
+    pub fn start(&mut self) {
         {
             *self.collect.lock().unwrap() = true;
             self.factory.lock().unwrap().reset();
             self.session_buffer.lock().unwrap().clear();
-            window.emit("cipher-misaligned", ()).unwrap();
+            //window.emit("cipher-misaligned", ()).unwrap();
         }
         let factory = self.factory.clone();
         let device = self.device.clone();
@@ -54,7 +54,7 @@ impl Sniffer {
             while *run.lock().unwrap() == true {
                 //log::debug!("sniffer is running");
                 match cap.next_packet() {
-                    Ok(p) => Self::process_packet(p, &mut received_nonmax_packet, &window, &factory, &session_buffer),
+                    Ok(p) => Self::process_packet(p, &mut received_nonmax_packet, &factory, &session_buffer),
                     Err(e) => println!("pcap error {}", e),   
                 }
             }
@@ -66,7 +66,7 @@ impl Sniffer {
     /**
      * Open a capture handle to a pcap file, set the filter, and begin processing packets
      */
-    pub fn start_using_pcap_file(&mut self, window: tauri::Window, file_path: String) {
+    pub fn start_using_pcap_file(&mut self, file_path: String, window: tauri::Window) {
         {
             *self.collect.lock().unwrap() = true;
             self.factory.lock().unwrap().reset();
@@ -93,7 +93,7 @@ impl Sniffer {
             loop {
                 match cap.next_packet() {
                     Err(_) => break,
-                    Ok(p) => Self::process_packet(p, &mut received_nonmax_packet, &window, &factory, &session_buffer),   
+                    Ok(p) => Self::process_packet(p, &mut received_nonmax_packet, &factory, &session_buffer),   
                 }
             }
             //log::debug!("Collection thread stopping");
@@ -102,7 +102,7 @@ impl Sniffer {
         self.capture_thread = Some(handle);
     }
 
-    fn process_packet(p: Packet, received_nonmax_packet: &mut bool, window: &tauri::Window, factory: &Arc<Mutex<RotmgPacketFactory>>, session_buffer: &Arc<Mutex<Vec<RotmgPacket>>>) {
+    fn process_packet(p: Packet, received_nonmax_packet: &mut bool, factory: &Arc<Mutex<RotmgPacketFactory>>, session_buffer: &Arc<Mutex<Vec<RotmgPacket>>>) {
         let slice = etherparse::SlicedPacket::from_ethernet(&(*p));
         match slice {
             Ok(s) => {
@@ -125,7 +125,7 @@ impl Sniffer {
                 }
                 if *received_nonmax_packet == true {
                     let mut factory = factory.lock().expect("RwLock error");
-                    factory.insert_packet(s, &window);
+                    factory.insert_packet(s);
                     while let Some(p) = factory.get_packet() {
                         session_buffer.lock().unwrap().push(p);
                     }
@@ -161,3 +161,5 @@ impl Sniffer {
         self.device = Some(device.clone());
     }
 }
+
+
