@@ -23,8 +23,7 @@ impl ByteBuffer {
         return self
     }
 
-    /// Return the next n bytes from the buffer as a slice and move the current index.
-    /// 
+    /// Return the next n bytes from the buffer as a slice and move the current index. \
     /// Return an error if there are not n bytes left.
     pub fn read_n_bytes(&mut self, n: usize) -> Result<&[u8], ()> {
         self.index += n;
@@ -34,8 +33,7 @@ impl ByteBuffer {
         }
         return Ok(&self.bytes[self.index-n..self.index])
     }
-    /// Return the next n bytes from the buffer as a slice without moving the current index.
-    /// 
+    /// Return the next n bytes from the buffer as a slice without moving the current index. \
     /// Return an error if there are not n bytes left.
     pub fn read_n_bytes_static(&self, n: usize) -> Result<&[u8], ()> {
         if self.index + n > self.bytes.len() {
@@ -44,88 +42,74 @@ impl ByteBuffer {
         return Ok(&self.bytes[self.index..self.index+n])
     }
 
-    /// Get the next byte from the buffer and move the current index.
-    /// 
+    /// Get the next byte from the buffer and move the current index. \
     /// Return an error if there are no bytes left.
     pub fn read_u8(&mut self) -> Result<u8, ()> {
         Ok(self.read_n_bytes(1)?[0])
     }
-    /// Get the next byte from the buffer without moving the current index.
-    /// 
+    /// Get the next byte from the buffer without moving the current index. \
     /// Return an error if there are no bytes left.
     pub fn read_u8_static(&self) -> Result<u8, ()> {
         Ok(self.read_n_bytes_static(1)?[0])
     }
 
-    /// Get the next 2 bytes from the buffer as a u16 and move the current index.
-    /// 
+    /// Get the next 2 bytes from the buffer as a u16 and move the current index. \
     /// Return an error if there are not enough bytes left.
     pub fn read_u16(&mut self) -> Result<u16, ()> {
         Ok(BigEndian::read_u16(self.read_n_bytes(2)?))
     }
-    /// Get the next 2 bytes from the buffer as a u16 without moving the current index.
-    /// 
+    /// Get the next 2 bytes from the buffer as a u16 without moving the current index. \
     /// Return an error if there are not enough bytes left.
     pub fn read_u16_static(&self) -> Result<u16, ()> {
         Ok(BigEndian::read_u16(self.read_n_bytes_static(2)?))
     }
 
-    /// Get the next 4 bytes from the buffer as a u32 and move the current index.
-    /// 
+    /// Get the next 4 bytes from the buffer as a u32 and move the current index. \
     /// Return an error if there are not enough bytes left.
     pub fn read_u32(&mut self) -> Result<u32, ()> {
         Ok(BigEndian::read_u32(self.read_n_bytes(4)?))
     }
-    /// Get the next 4 bytes from the buffer as a u32 without moving the current index.
-    /// 
+    /// Get the next 4 bytes from the buffer as a u32 without moving the current index. \
     /// Return an error if there are not enough bytes left.
     pub fn read_u32_static(&self) -> Result<u32, ()> {
         Ok(BigEndian::read_u32(self.read_n_bytes_static(4)?))
     }
 
-    /// Get the next 8 bytes from the buffer as a u64 and move the current index.
-    /// 
+    /// Get the next 8 bytes from the buffer as a u64 and move the current index. \
     /// Return an error if there are not enough bytes left.
     pub fn read_u64(&mut self) -> Result<u64, ()> {
         Ok(BigEndian::read_u64(self.read_n_bytes(8)?))
     }
-    /// Get the next 8 bytes from the buffer as a u64 without moving the current index.
-    /// 
+    /// Get the next 8 bytes from the buffer as a u64 without moving the current index. \
     /// Return an error if there are not enough bytes left.
     pub fn read_u64_static(&self) -> Result<u64, ()> {
         Ok(BigEndian::read_u64(self.read_n_bytes_static(8)?))
     }
 
-    /// Get the next 4 bytes from the buffer as a f32 and move the current index.
-    /// 
+    /// Get the next 4 bytes from the buffer as a f32 and move the current index. \
     /// Return an error if there are not enough bytes left.
     pub fn read_f32(&mut self) -> Result<f32, ()> {
         Ok(BigEndian::read_f32(self.read_n_bytes(4)?))
     }
-    /// Get the next 4 bytes from the buffer as a f32 without moving the current index.
-    /// 
+    /// Get the next 4 bytes from the buffer as a f32 without moving the current index. \
     /// Return an error if there are not enough bytes left.
     pub fn read_f32_static(&self) -> Result<f32, ()> {
         Ok(BigEndian::read_f32(self.read_n_bytes_static(4)?))
     }
 
-    /// Get the next byte from the buffer as a bool and move the current index.
-    /// 
+    /// Get the next byte from the buffer as a bool and move the current index. \
     /// Return an error if there are not enough bytes left.
     pub fn read_bool(&mut self) -> Result<bool, ()> {
         Ok(self.read_u8()? != 0)
     }
-    /// Get the next byte from the buffer as a bool without the current index.
-    /// 
+    /// Get the next byte from the buffer as a bool without the current index. \
     /// Return an error if there are not enough bytes left.
     pub fn read_bool_static(&self) -> Result<bool, ()> {
         Ok(self.read_u8_static()? != 0)
     }
 
-    /// Get a utf8 encoded string from the buffer and move the current index to the end of the string.
-    /// 
-    /// The u16 at the current index denotes the length of the string.
-    /// 
+    /// Get a utf8 encoded string from the buffer and move the current index to the end of the string. \
+    /// The u16 at the current index denotes the length of the string. \
     /// Return an error if there are not enough bytes left.
     pub fn read_string(&mut self) -> Result<String, ()> {
         let length = self.read_u16()?;
@@ -133,8 +117,7 @@ impl ByteBuffer {
         String::from_utf8(byte_string.to_vec()).or(Err(()))
     }
 
-    /// Get the next 2 bytes from the buffer as a compressed i32 and move the current index to the end of the string.
-    /// 
+    /// Get the next 2 bytes from the buffer as a compressed i32 and move the current index to the end of the string. \
     /// Return and error if there are not enough bytes left.
     pub fn read_compressed_i32(&mut self) -> Result<i32, ()> {
         let mut ubyte = self.read_u8()? as i32;
@@ -150,10 +133,8 @@ impl ByteBuffer {
         return Ok(if is_negative {-1*value} else {value})
     }
 
-    /// Get a vec of compresed i32s from the buffer and move the current index to the end of the vec.
-    /// 
-    /// The leading compressed i32 denotes the length of the vec.
-    /// 
+    /// Get a vec of compresed i32s from the buffer and move the current index to the end of the vec. \
+    /// The leading compressed i32 denotes the length of the vec. \
     /// Return and error if there are not enough bytes left.
     pub fn read_compressed_i32_vec(&mut self) -> Result<Vec<i32>, ()> {
         let mut ret = vec![];
@@ -163,14 +144,12 @@ impl ByteBuffer {
         Ok(ret)
     }
 
-    /// Return the entire contents of the buffer as a vec of bytes.
-    /// 
+    /// Return the entire contents of the buffer as a vec of bytes. \
     /// Does not move the current index.
     pub fn to_vec(&self) -> Vec<u8> {
         self.bytes.clone()
     }
-    /// Return the remaining contents of the buffer after the current index as a vec of bytes.
-    /// 
+    /// Return the remaining contents of the buffer after the current index as a vec of bytes. \
     /// Does not move the current index.
     pub fn rem_to_vec(&self) -> Vec<u8> {
         self.bytes[self.index..].into()
