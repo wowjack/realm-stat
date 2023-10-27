@@ -10,8 +10,11 @@ pub struct ByteBuffer {
 }
 impl ByteBuffer {
     /// Construct a new ByteBuffer from a vector of bytes.
-    pub fn new(bytes: Vec<u8>) -> Self {
-        Self { bytes, index: 0 }
+    pub fn new(bytes: &[u8]) -> Self {
+        Self { 
+            bytes: bytes.to_vec(),
+            index: 0
+        }
     }
 
     /// Reset the current index of the buffer to 0.

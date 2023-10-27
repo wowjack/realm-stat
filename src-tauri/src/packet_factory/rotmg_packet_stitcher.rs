@@ -24,16 +24,11 @@ impl RotmgPacketStitcher {
 
             let next_packet_len = byteorder::BigEndian::read_u32(&[self.iqueue[0], self.iqueue[1], self.iqueue[2], self.iqueue[3]]);
 
-            //return if the input queue isn't long enough to create another rotmg packet
+            //return if the input queue isn't long enough to create another packet
             if self.iqueue.len() < next_packet_len as usize { return out }
 
             //Create a StitchedPacket and push it to the output queue
-            let mut application_data = ByteBuffer::new(self.iqueue.drain(0..next_packet_len as usize).collect());
-            let _ = application_data.read_n_bytes(4);
-
-            if let Ok(t) = application_data.read_u8() {
-                out.push(StitchedPacket { type_num: t, data: application_data });
-            }
+            out.push(StitchedPacket::new(self.iqueue.drain(0..next_packet_len as usize).collect()));
         }
     }
 
@@ -45,5 +40,17 @@ impl RotmgPacketStitcher {
 #[derive(Clone, Debug)]
 pub struct StitchedPacket {
     pub type_num: u8,
-    pub data: ByteBuffer
+    pub buffer: ByteBuffer
+}
+impl StitchedPacket {
+    pub fn new(data: Vec<u8>) -> Self {
+        Self {
+            type_num: data[4],
+            buffer: ByteBuffer::new(&data[5..])
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.buffer.len()
+    }
 }
