@@ -2,6 +2,8 @@ use std::collections::VecDeque;
 
 use byteorder::ByteOrder;
 
+use crate::rc4::Rc4;
+
 use super::byte_buffer::ByteBuffer;
 
 
@@ -52,5 +54,9 @@ impl StitchedPacket {
 
     pub fn len(&self) -> usize {
         self.buffer.len()
+    }
+
+    pub fn decrypt(&mut self, cipher: &mut Rc4) {
+        self.buffer.decrypt(cipher);
     }
 }

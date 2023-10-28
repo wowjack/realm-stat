@@ -1,6 +1,8 @@
 #![allow(unused)]
 use byteorder::{BigEndian, ByteOrder};
 
+use crate::rc4::Rc4;
+
 
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -162,5 +164,10 @@ impl ByteBuffer {
     /// Get the length of the buffer after the current index.
     pub fn rem_len(&self) -> usize {
         self.bytes.len() - self.index
+    }
+
+    /// Apply a Rc4 cipher's keystream to the entire buffer
+    pub fn decrypt(&mut self, cipher: &mut Rc4) {
+        self.bytes = cipher.apply_keystream(0, &self.bytes);
     }
 }

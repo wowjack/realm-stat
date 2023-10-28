@@ -115,15 +115,6 @@ impl Rc4 {
                 return true;
             }
             self.skip(1);
-
-            // if self.get_keystream_byte()==tick_data[0] && self.get_keystream_byte()==tick_data[1] {
-            //     self.skip(2);
-            //     if self.get_keystream_byte()==tick_data[4] && self.get_keystream_byte()==tick_data[5] && self.get_keystream_byte()==tick_data[6] {
-            //         //log::debug!("Found appropriate keystream");
-            //         self.reverse(7);
-            //         return true;
-            //     }
-            // }
         }
         //log::debug!("Failed to find keystream");
         return false;

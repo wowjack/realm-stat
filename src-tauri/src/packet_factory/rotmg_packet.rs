@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 use crate::packet_factory::byte_buffer::ByteBuffer;
-use super::data_types::*;
+use super::{data_types::*, rotmg_packet_stitcher::StitchedPacket};
 
 #[repr(u16)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -486,14 +486,13 @@ pub enum RotmgPacket {
         rem: ByteBuffer
     } = 1000,
 }
-impl TryFrom<ByteBuffer> for RotmgPacket {
+impl TryFrom<StitchedPacket> for RotmgPacket {
     type Error = ();
 
-    fn try_from(mut buf: ByteBuffer) -> Result<Self, ()> {
+    fn try_from(mut sp: StitchedPacket) -> Result<Self, ()> {
         use RotmgPacket::*;
-        let _packet_len = buf.read_u32()?;
-        let packet_type = buf.read_u8()?;
-        return Ok(match packet_type {
+        let mut buf = sp.buffer;
+        return Ok(match sp.type_num {
             0 => Failure { rem: buf },
             1 => Teleport { rem: buf },
             3 => ClaimLoginReward { rem: buf },
@@ -628,7 +627,7 @@ impl TryFrom<ByteBuffer> for RotmgPacket {
             166 => Stasis { rem: buf },
             169 => Unknown169 { rem: buf },
 
-            _ => Other { type_num: packet_type, rem: buf},
+            _ => Other { type_num: sp.type_num, rem: buf},
         })
     }
 }

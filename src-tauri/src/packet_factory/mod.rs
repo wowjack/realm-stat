@@ -43,7 +43,12 @@ impl RotmgPacketFactory {
 
         let pipe_oqueue = oqueue.clone();
         let _decrypter = Arc::new(Mutex::new(RotmgPacketDecryptor::new(Box::new(
-            move |packets: Vec<RotmgPacket>| pipe_oqueue.lock().unwrap().extend(packets.into_iter())
+            move |packets: Vec<RotmgPacket>| {
+                for packet in packets.iter() {
+                    println!("{:?}", packet);
+                }
+                pipe_oqueue.lock().unwrap().extend(packets.into_iter());
+            }
         ))));
 
         let tick_pipe_decrypter = _decrypter.clone();
