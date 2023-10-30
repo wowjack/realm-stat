@@ -46,12 +46,23 @@ impl EncryptedTickFrame {
     pub fn payload_len(&self) -> usize {
         self.packets.iter().fold(0, |acc, e| acc + e.len())
     }
+    pub fn total_len(&self) -> usize {
+        self.payload_len() + self.terminating_tick.len()
+    }
 
     pub fn decrypt(&self, cipher: &mut Rc4) -> DecryptedTickFrame {
         let mut packets = self.packets.clone();
-        packets.iter_mut().for_each(|p| p.decrypt(cipher));
+        packets.iter_mut().for_each(|p| {
+            p.decrypt(cipher);
+            if p.type_num == 45 {
+                log::debug!("reset packet");
+                cipher.reset();
+            }
+        });
         let mut terminating_tick = self.terminating_tick.clone();
         terminating_tick.decrypt(cipher);
         DecryptedTickFrame { packets, terminating_tick }
     }
+
+    
 }

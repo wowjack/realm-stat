@@ -34,8 +34,15 @@ impl RotmgPacketDecryptor {
 
     /// Attempts to decrypt the frame of packets \
     /// Performs a sanity check on the decrypted packets to make sure everything is okay
-    pub fn insert_frame(&mut self, mut frame: EncryptedTickFrame) {
-        let (decrypted_frame, integrity) = self.decrypt(frame);
+    pub fn insert_frame(&mut self, frame: EncryptedTickFrame) {
+        let (decrypted_frame, _integrity) = self.decrypt(frame);
+        match _integrity {
+            DecryptionIntegrity::Ok => (),
+            DecryptionIntegrity::MissingBytes(n) => log::debug!("Missing bytes: {n}"),
+            DecryptionIntegrity::ExtraBytes(n) => log::debug!("Extra bytes: {n}"),
+            DecryptionIntegrity::Warn => log::debug!("Warn"),
+            DecryptionIntegrity::Duplicate => log::debug!("Duplicate"),
+        }
         (self.pipe)(decrypted_frame.to_rotmg_packets());
     }
 
@@ -43,12 +50,12 @@ impl RotmgPacketDecryptor {
     fn decrypt(&mut self, frame: EncryptedTickFrame) -> (DecryptedTickFrame, DecryptionIntegrity) {
         match self.prev_tick.clone() {
             Some(data) =>  self.decrypt_with_prev_tick(frame, data),
-            None => (self.decrypt_without_prev_tick(frame), DecryptionIntegrity::Ok)
+            None => (self.decrypt_without_prev_tick(frame), DecryptionIntegrity::Warn)
         }
     }
 
 
-    fn decrypt_without_prev_tick(&mut self, mut frame: EncryptedTickFrame) -> DecryptedTickFrame {
+    fn decrypt_without_prev_tick(&mut self, frame: EncryptedTickFrame) -> DecryptedTickFrame {
         let mut cipher = Rc4::new(IKEY.to_vec());
         cipher.align_to_tick(frame.terminating_tick.buffer.read_n_bytes_static(7).unwrap());
         cipher.reverse(frame.payload_len());
@@ -63,6 +70,8 @@ impl RotmgPacketDecryptor {
     fn decrypt_with_prev_tick(&mut self, frame: EncryptedTickFrame, mut prev_tick_data: PrevTickData) -> (DecryptedTickFrame, DecryptionIntegrity) {
         if frame.terminating_tick.buffer.read_n_bytes_static(4).unwrap_or(&[0,0,0,0]) == prev_tick_data.encrypted_data.buffer.read_n_bytes_static(4).unwrap_or(&[0,0,0,0]) {
             // Got duplicate tick
+            //log::debug!("Got duplicate tick frame");
+            //log::debug!("{:?}\n{:?}\n", prev_tick_data.encrypted_data, frame.terminating_tick);
             return (frame.decrypt(&mut prev_tick_data.cipher), DecryptionIntegrity::Duplicate);
         }
         let mut cipher = prev_tick_data.cipher.clone();
@@ -70,7 +79,15 @@ impl RotmgPacketDecryptor {
         let mut new_tick = frame.terminating_tick.clone();
         new_tick.decrypt(&mut cipher);
         if RotmgPacketDecryptor::validate_ticks(&prev_tick_data.decrypted_data, &new_tick) == false {
-            return (self.decrypt_without_prev_tick(frame), DecryptionIntegrity::Warn)
+            let frame_len = frame.total_len();
+            let decrypted_tick_frame = self.decrypt_without_prev_tick(frame);
+            let new_cipher = &self.prev_tick.as_ref().unwrap().cipher;
+            if new_cipher.offset < prev_tick_data.cipher.offset + frame_len {
+                return (decrypted_tick_frame, DecryptionIntegrity::MissingBytes(prev_tick_data.cipher.offset + frame_len - new_cipher.offset))
+            } else if new_cipher.offset > prev_tick_data.cipher.offset + frame_len {
+                return (decrypted_tick_frame, DecryptionIntegrity::ExtraBytes(new_cipher.offset - prev_tick_data.cipher.offset - frame_len))
+            }
+            return (decrypted_tick_frame, DecryptionIntegrity::Warn)
         }
         let mut new_cipher = prev_tick_data.cipher.clone();
         let decrypted_frame = frame.decrypt(&mut new_cipher);
@@ -106,7 +123,7 @@ impl DecryptedTickFrame {
     pub fn to_rotmg_packets(self) -> Vec<RotmgPacket> {
         self.packets
             .into_iter()
-            .chain(vec![self.terminating_tick].into_iter())
+            .chain([self.terminating_tick].into_iter())
             .filter_map(|sp| RotmgPacket::try_from(sp).ok())
             .collect()
     }
