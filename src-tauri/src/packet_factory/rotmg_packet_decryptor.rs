@@ -20,6 +20,7 @@ type PacketDecryptorPipe = Box<dyn Fn(Vec<RotmgPacket>) + Send + Sync + 'static>
     drop the old packets, then continue on working with the new frames in the queue. 
 */
 
+/// Manager-Worker pattern is well suited for this
 pub struct RotmgPacketDecryptor {
     pipe: PacketDecryptorPipe,
     prev_tick: Option<PrevTickData>

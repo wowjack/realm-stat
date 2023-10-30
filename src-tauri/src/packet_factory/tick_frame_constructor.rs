@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, sync::Arc};
+use std::collections::VecDeque;
 
 use crate::rc4::Rc4;
 
@@ -7,7 +7,8 @@ use super::{rotmg_packet_stitcher::StitchedPacket, rotmg_packet_decryptor::Decry
 
 type TickFramePipe = Box<dyn Fn(EncryptedTickFrame) + Send + Sync + 'static>;
 
-/// Group encrypted packets together into a frame terminating in a tick packet
+/// Group encrypted packets together into a frame terminating in a tick packet \
+/// Builder pattern is probably better suited for this
 pub struct TickFrameConstructor {
     iqueue: VecDeque<StitchedPacket>,
     pipe: TickFramePipe,
