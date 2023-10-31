@@ -1,3 +1,6 @@
+use std::{thread::JoinHandle, sync::mpsc::Sender};
+use std::sync::mpsc::channel;
+
 use crate::rc4::Rc4;
 
 use super::{rotmg_packet::RotmgPacket, tick_frame_constructor::EncryptedTickFrame, rotmg_packet_stitcher::StitchedPacket};
@@ -11,10 +14,9 @@ type PacketDecryptorPipe = Box<dyn Fn(Vec<RotmgPacket>) + Send + Sync + 'static>
 /*
     I'm thinking spawn a worker thread that will grab frames from a queue and attempt to decrypt them one at a time.
     If the worker needs to spend a while trying to align the cipher it will not block the capture thread.
-    Use condition variable so the worker doesn't spin if the queue is empty because nothing is being captured.
-    Need to consider the case where the factory is reset but the worker is still aligning the cipher.
-    Perhaps use message passing channel to send the thread a message whenever the factory is reset.
-    After successfully decrypting a frame, the worker will check for a reset message and wont pipe the decrypted packets out if reset was received.
+    Use a message passing channel to serve as a buffer for incoming encrypted tick frames.
+    
+    The worker will decrypt and pipe out all frames. Once the buffer is empty, the worker will wait until another message arrives.
     This shouldn't be a problem if the factory is reset, then started up again quickly. As the worker is working, the capture thread can easily clear
     the queue and send the reset message. Any incoming frames after that will enter the queue. The worker will finish working on the frame,
     drop the old packets, then continue on working with the new frames in the queue. 
@@ -23,7 +25,8 @@ type PacketDecryptorPipe = Box<dyn Fn(Vec<RotmgPacket>) + Send + Sync + 'static>
 /// Manager-Worker pattern is well suited for this
 pub struct RotmgPacketDecryptor {
     pipe: PacketDecryptorPipe,
-    prev_tick: Option<PrevTickData>
+    prev_tick: Option<PrevTickData>,
+
 }
 impl RotmgPacketDecryptor {
     pub fn new(pipe: PacketDecryptorPipe) -> Self {

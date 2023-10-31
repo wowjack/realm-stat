@@ -5,30 +5,24 @@ use crate::rc4::Rc4;
 use super::{rotmg_packet_stitcher::StitchedPacket, rotmg_packet_decryptor::DecryptedTickFrame};
 
 
-type TickFramePipe = Box<dyn Fn(EncryptedTickFrame) + Send + Sync + 'static>;
-
 /// Group encrypted packets together into a frame terminating in a tick packet \
-/// Builder pattern is probably better suited for this
 pub struct TickFrameConstructor {
     iqueue: VecDeque<StitchedPacket>,
-    pipe: TickFramePipe,
 }
 impl TickFrameConstructor {
-    pub fn new(pipe: TickFramePipe) -> Self {
-        Self {
-            iqueue: VecDeque::with_capacity(10),
-            pipe,
-        }
+    pub fn new() -> Self {
+        Self { iqueue: VecDeque::with_capacity(10) }
     }
 
-    pub fn insert_packet(&mut self, packet: StitchedPacket) {
+    pub fn insert_packet(&mut self, packet: StitchedPacket) -> Option<EncryptedTickFrame> {
         if packet.type_num == 10 { // received a tick packet
-            (self.pipe)(EncryptedTickFrame {
+            return Some(EncryptedTickFrame {
                 packets: self.iqueue.drain(0..self.iqueue.len()).collect(),
                 terminating_tick: packet
             });
         } else {
             self.iqueue.push_back(packet);
+            return None;
         }
     }
 

@@ -30,7 +30,7 @@ pub struct RotmgPacketFactory {
     tick_frame_constructor: TickFrameConstructor,
 
     /// Takes in frames of packets from the frame construcor and attempts to decrypt them
-    _decrypter: Arc<Mutex<RotmgPacketDecryptor>>,
+    _decrypter: RotmgPacketDecryptor,
 
     /// Output queue of fully decrypted and constructed ROTMG packets
     ///* Wrapped in an arc and mutex since the constructor's pipe closure needs to capture it to send packets here
@@ -42,19 +42,17 @@ impl RotmgPacketFactory {
         let oqueue = Arc::new(Mutex::new(VecDeque::new()));
 
         let pipe_oqueue = oqueue.clone();
-        let _decrypter = Arc::new(Mutex::new(RotmgPacketDecryptor::new(Box::new(
+        let _decrypter = RotmgPacketDecryptor::new(Box::new(
             move |packets: Vec<RotmgPacket>| {
                 for packet in packets.iter() {
                     //println!("{:?}", packet);
                 }
                 pipe_oqueue.lock().unwrap().extend(packets.into_iter());
             }
-        ))));
-
-        let tick_pipe_decrypter = _decrypter.clone();
-        let tick_frame_constructor = TickFrameConstructor::new(Box::new(
-            move |frame| tick_pipe_decrypter.lock().unwrap().insert_frame(frame)
         ));
+
+        let tick_frame_constructor = TickFrameConstructor::new();
+
 
         Self { stitcher, tick_frame_constructor, _decrypter, oqueue }
     }
@@ -63,10 +61,13 @@ impl RotmgPacketFactory {
     pub fn insert_packet(&mut self, packet: SlicedPacket) {
         // Send packet to the stitcher, then send resulting stitched packets to the frame constructor
         // The frame constructor will handle the rest using its pipe
+
+
         self.stitcher
             .insert_packet(packet.payload)
             .into_iter()
-            .for_each(|sp| self.tick_frame_constructor.insert_packet(sp));
+            .filter_map(|sp| self.tick_frame_constructor.insert_packet(sp))
+            .for_each(|etf| self._decrypter.insert_frame(etf));
     }
 
 
@@ -91,7 +92,7 @@ impl RotmgPacketFactory {
     pub fn reset(&mut self) {
         self.stitcher.reset();
         self.tick_frame_constructor.reset();
-        self._decrypter.lock().unwrap().reset();
+        self._decrypter.reset();
         self.oqueue.lock().unwrap().clear();
     }
 }
