@@ -3,7 +3,7 @@
 use etherparse::{TransportSlice, InternetSlice};
 use pcap::{Device, Packet};
 use crate::packet_factory::{RotmgPacketFactory, rotmg_packet::RotmgPacket};
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, time::Instant};
 
 
 pub struct Sniffer {
@@ -67,6 +67,8 @@ impl Sniffer {
      * Open a capture handle to a pcap file, set the filter, and begin processing packets
      */
     pub fn start_using_pcap_file(&mut self, file_path: String, window: tauri::Window) {
+        let curr_time = Instant::now();
+        let time_path = file_path.clone();
         {
             *self.collect.lock().unwrap() = true;
             self.factory.lock().unwrap().reset();
@@ -99,7 +101,9 @@ impl Sniffer {
             //log::debug!("Collection thread stopping");
             window.emit("pcap-eof", ()).expect("Error emitting event");
         });
-        self.capture_thread = Some(handle);
+        //self.capture_thread = Some(handle);
+        handle.join().unwrap();
+        log::debug!("{}ms to process {time_path}", curr_time.elapsed().as_millis());
     }
 
     fn process_packet(p: Packet, received_nonmax_packet: &mut bool, factory: &Arc<Mutex<RotmgPacketFactory>>, session_buffer: &Arc<Mutex<Vec<RotmgPacket>>>) {
