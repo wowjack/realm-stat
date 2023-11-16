@@ -3,8 +3,8 @@ use byteorder::{BigEndian, ByteOrder};
 
 use crate::rc4::Rc4;
 
-
-
+/// Wrapper over a Vec\<u8\> with a moving index \
+/// Used to get a chunk of bytes from the buffer and reinterpret them as a certain type
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ByteBuffer {
     pub bytes: Vec<u8>,
@@ -13,16 +13,16 @@ pub struct ByteBuffer {
 impl ByteBuffer {
     /// Construct a new ByteBuffer from a vector of bytes.
     pub fn new(bytes: &[u8]) -> Self {
-        Self { 
+        Self {
             bytes: bytes.to_vec(),
-            index: 0
+            index: 0,
         }
     }
 
     /// Reset the current index of the buffer to 0.
     pub fn reset(mut self) -> Self {
         self.index = 0;
-        return self
+        return self;
     }
 
     /// Return the next n bytes from the buffer as a slice and move the current index. \
@@ -31,17 +31,17 @@ impl ByteBuffer {
         self.index += n;
         if self.index > self.bytes.len() {
             self.index -= n;
-            return Err(())
+            return Err(());
         }
-        return Ok(&self.bytes[self.index-n..self.index])
+        return Ok(&self.bytes[self.index - n..self.index]);
     }
     /// Return the next n bytes from the buffer as a slice without moving the current index. \
     /// Return an error if there are not n bytes left.
     pub fn read_n_bytes_static(&self, n: usize) -> Result<&[u8], ()> {
         if self.index + n > self.bytes.len() {
-            return Err(())
+            return Err(());
         }
-        return Ok(&self.bytes[self.index..self.index+n])
+        return Ok(&self.bytes[self.index..self.index + n]);
     }
 
     /// Get the next byte from the buffer and move the current index. \
@@ -132,7 +132,7 @@ impl ByteBuffer {
             value |= (ubyte & 127) << shift;
             shift += 7;
         }
-        return Ok(if is_negative {-1*value} else {value})
+        return Ok(if is_negative { -1 * value } else { value });
     }
 
     /// Get a vec of compresed i32s from the buffer and move the current index to the end of the vec. \
@@ -171,3 +171,4 @@ impl ByteBuffer {
         self.bytes = cipher.apply_keystream(0, &self.bytes);
     }
 }
+
